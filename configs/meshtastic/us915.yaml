@@ -1,0 +1,70 @@
+# Meshtastic baseline config — US915 (your location)
+#
+# Apply with the Meshtastic CLI once the LoRa rail is up and the node is detected:
+#   aiov2_ctl LORA on
+#   meshtastic --info                       # confirm the SX1262 is found
+#   meshtastic --configure us915.yaml
+#   meshtastic --export-config > as-applied.yaml   # keep the real state next to this file
+#                                                   # (broken as of 2026-09-17 — hangs with no
+#                                                   # output against this node; see build-log.md)
+#
+# Join the two regional community meshes (your location sits near the NC/SC border — both are
+# in RF range). This only sets the channel key so the node can hear/relay both over plain LoRa;
+# it does NOT set up MQTT internet-bridging for either (that needs picking one broker — see
+# docs/logs/build-log.md 2026-09-17 for why, and each community's own site for credentials:
+# https://ncmesh.net/join/ and https://www.scmesh.us/ — do not commit those credentials here):
+#   meshtastic --ch-add SCMesh && meshtastic --ch-set psk default --ch-index 1
+#   meshtastic --ch-add NCMesh && meshtastic --ch-set psk default --ch-index 2
+#   # "psk default" is Meshtastic's public built-in key (base64 "AQ=="), the same key every
+#   # default/LongFast channel ships with — not a secret, safe to commit.
+#
+# Verify after applying:
+#   meshtastic --info        # region US, preset LONG_FAST, SX1262 detected
+#                             # Channels: index 0 PRIMARY SCMesh, 1 SECONDARY NCMesh
+#   journalctl -u meshtasticd | grep "Set radio"   # name=SCMesh, ch=88 (924.125 MHz)
+#
+# FREQUENCY COMES FROM THE PRIMARY CHANNEL NAME. With channel_num unset (0), Meshtastic picks the
+# slot by hashing the primary channel's name: unnamed/"LongFast" -> slot 19, 906.875 MHz;
+# "SCMesh" -> slot 88, 924.125 MHz; "NCMesh" -> slot 59, 916.875 MHz. Secondary channels share
+# the primary's frequency, so adding SCMesh/NCMesh as secondaries does NOT tune to either mesh.
+# Until 2026-09-23 this node ran a LongFast primary and heard nothing; the owner's Heltec V3 and
+# M5Stack nodes run an SCMesh primary.
+#
+# Roll back:
+#   meshtastic --configure as-applied.yaml   # the export taken before this change
+#   meshtastic --factory-reset               # last resort; loses channels and node identity
+#
+# ANTENNA MUST BE ATTACHED before enabling the rail or transmitting.
+#
+# Region is a software setting on this hardware — the AIO V2's SX1262 covers 860–960 MHz,
+# so no board variant choice is involved (see docs/logs/decisions.md).
+
+owner: uWicked
+owner_short: uWIC
+
+config:
+  lora:
+    region: US
+    # LONG_FAST is the Meshtastic default and what most local meshes use.
+    # Slower presets travel further at lower throughput; both ends must match.
+    modem_preset: LONG_FAST
+    hop_limit: 3
+    tx_enabled: true
+    # tx_power: leave unset to use the region default; the SX1262 is rated to 22 dBm
+  device:
+    role: CLIENT
+  position:
+    # GPS position sharing is OFF by default here on purpose: broadcasting a fix from a
+    # home location is a privacy decision, not a default. Enable deliberately when mobile.
+    gps_enabled: false
+    position_broadcast_smart_enabled: true
+  display:
+    screen_on_secs: 60
+
+# Channels (set with the CLI after --configure; see software/meshtastic.md "Configure"):
+#   index 0 PRIMARY   name SCMesh, psk default   -> sets the frequency (924.125 MHz)
+#   index 1 SECONDARY name NCMesh, psk default
+# The default PSK ("AQ==") is public by design, so these channels are not private.
+# For a private mesh, generate a new PSK rather than reusing any key committed anywhere:
+#   meshtastic --ch-set psk random --ch-index 0
+# NEVER commit a real PSK to this repo.

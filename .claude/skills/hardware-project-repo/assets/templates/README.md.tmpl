@@ -1,0 +1,37 @@
+# {{NAME}}
+
+Documentation, configuration, and knowledge capture for this build.
+
+## Hardware summary
+
+| Component | Notes |
+|---|---|
+{{COMPONENT_ROWS}}
+
+## Repository layout
+
+| Path | Contents |
+|---|---|
+| [`docs/`](docs/) | BOM, accessories, runbooks, checklists, references, logs, records |
+| [`hardware/`](hardware/) | Per-component spec sheets, datasheet index, mechanical notes |
+| [`configs/`](configs/) | Files applied to the device, by subsystem |
+| [`software/`](software/) | Per-application setup notes |
+| [`firmware/`](firmware/) | What gets flashed, and how |
+| [`knowledge/`](knowledge/README.md) | Domain knowledge this build feeds |
+
+## Documentation
+
+**Reference** — [Bill of materials](docs/bill-of-materials.md) · [Accessories](docs/accessories.md) · [Hardware specs](hardware/specs/) · [Datasheets](hardware/datasheets/README.md) · [Mechanical](hardware/mechanical.md)
+
+**Checklists** — [Inventory & inspection](docs/checklists/inventory-and-inspection.md) · [Bring-up tests](docs/checklists/bringup-tests.md)
+
+**Logs** (living) — [Build log](docs/logs/build-log.md) · [Known issues](docs/logs/known-issues.md) · [Decisions](docs/logs/decisions.md) · [Firmware versions](docs/logs/firmware-versions.md)
+
+**Records** — [Order & warranty](docs/records/order-and-warranty.md)
+
+See also [TODO.md](TODO.md), [CHANGELOG.md](CHANGELOG.md), and [CLAUDE.md](CLAUDE.md).
+
+## Status
+
+{{DATE}} — scaffolded. Nothing here has been executed on hardware yet; claims carry verify markers
+until the bring-up checklist proves them.

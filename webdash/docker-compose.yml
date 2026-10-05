@@ -1,0 +1,41 @@
+# uConsole webdash — runtime config.
+#
+# network_mode: host lets the container reach every service it aggregates without any
+# proxying/port-mapping: gpsd (127.0.0.1:2947), Kismet (127.0.0.1:2501), meshtasticd
+# (127.0.0.1:4403), tar1090/readsb (127.0.0.1/tar1090/data/), and the aiov2_ctl bridge
+# (127.0.0.1:8765, a host-side systemd service — see host-helpers/).
+#
+# No /dev bind-mount and no cap_add: unlike CyberDeck's webdash, this app never owns hardware
+# directly — every collector talks to an already-running localhost service. See
+# docs/reference/webdash-architecture.md.
+
+services:
+  webdash:
+    build: .
+    image: uconsole-webdash:latest
+    container_name: uconsole-webdash
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      # Read-only host disk usage (the container's own / is the overlay fs, not the host's).
+      - /:/hostfs:ro
+      # CPU temperature.
+      - /sys/class/thermal:/sys/class/thermal:ro
+      # Auth secret store — password hash + TOTP secret. Outside the repo, outside git.
+      # ~ is not expanded by docker-compose; override with a .env file if your home isn't this.
+      - ${WEBDASH_AUTH_DIR:-/home/user/.config/uconsole-webdash}:/auth
+      # Kismet's OWN httpd auth file, read-only: the collector reads httpd_username/password from
+      # it to authenticate to the Kismet REST API (which requires login). Single source of truth —
+      # no copy of the Kismet password lives in this repo, the image, or the container env.
+      - ${WEBDASH_KISMET_AUTH_FILE:-/home/user/.kismet/kismet_httpd.conf}:/secrets/kismet_httpd.conf:ro
+      # Learning platform: the compiled curriculum bundle (written on the host by
+      # host-helpers/learn-compile.py) read-only, and learner state (SQLite) read-write.
+      # Both outside the repo; see docs/reference/learning-platform-plan.md §3.5.
+      - ${WEBDASH_LEARN_DIR:-/home/user/.local/share/uconsole-webdash/learn}:/learn:ro
+      - ${WEBDASH_DATA_DIR:-/home/user/.local/share/uconsole-webdash/data}:/data
+    environment:
+      - WEBDASH_AUTH_DIR=/auth
+      - WEBDASH_HOSTFS=/hostfs
+      - WEBDASH_LEARN_DIR=/learn
+      - WEBDASH_DATA_DIR=/data
+      - WEBDASH_KISMET_AUTH_FILE=/secrets/kismet_httpd.conf

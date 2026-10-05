@@ -1,0 +1,48 @@
+# Bring-up & acceptance checklist
+
+Pass/fail test per subsystem, with the exact command and the output that counts as a pass. Record
+results in [`../logs/build-log.md`](../logs/build-log.md); log failures in
+[`../logs/known-issues.md`](../logs/known-issues.md).
+
+Run in order — later tests assume earlier ones passed.
+
+## 0. Baseline state
+
+Make test 0 the one that settles the largest open assumption in the project.
+
+```bash
+# command that reports the device's actual starting state
+```
+
+- [ ] Recorded, and written back into the relevant reference document
+
+## 1. Core platform
+
+| # | Subsystem | Command | Pass criterion | Pass | Notes |
+|---|---|---|---|---|---|
+| 1.1 | | | | [ ] | |
+
+## 2. Connectivity
+
+| # | Subsystem | Command | Pass criterion | Pass | Notes |
+|---|---|---|---|---|---|
+| 2.1 | | | | [ ] | |
+
+## 3. Payload / application subsystems
+
+| # | Subsystem | Command | Pass criterion | Pass | Notes |
+|---|---|---|---|---|---|
+| 3.1 | | | | [ ] | |
+
+## 4. Measurements that replace estimates
+
+| Measurement | Command | Value | Replaces |
+|---|---|---|---|
+| | | | |
+
+## Sign-off
+
+- [ ] All required subsystems pass
+- [ ] Failures logged with symptom, command, and output
+- [ ] Measured values written back into the budget and version logs
+- [ ] Baseline image or configuration backed up

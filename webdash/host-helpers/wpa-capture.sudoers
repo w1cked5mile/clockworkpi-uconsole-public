@@ -1,0 +1,5 @@
+# Scoped sudoers for the webdash WPA-capture bridge (authorized auditing only).
+# Lets the wpa-audit-bridge (running as wicked5mile) run ONLY the root-owned capture script with no
+# password. The script itself re-enforces the BSSID allowlist before touching the radio. Install to
+# /etc/sudoers.d/webdash-wpa-capture with mode 0440; validate with `visudo -cf`.
+wicked5mile ALL=(root) NOPASSWD: /usr/local/sbin/uconsole-wpa-capture.sh

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Fancy Dashboard — login</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <form class="auth" method="post" action="/login">
+    <h1>Fancy Dashboard</h1>
+    <p class="tagline">named for The Fancy, Henry Every's frigate, 1695</p>
+    <label>Username</label>
+    <input name="username" autocomplete="username" required autofocus />
+    <label>Password</label>
+    <input type="password" name="password" autocomplete="current-password" required />
+    <label>TOTP code</label>
+    <input name="totp_code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required />
+    <button type="submit">Log in</button>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  </form>
+</body>
+</html>

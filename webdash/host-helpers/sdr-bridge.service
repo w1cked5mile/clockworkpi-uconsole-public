@@ -1,0 +1,22 @@
+# Localhost SDR control bridge for the webdash — broadcast FM / airband hunt (and, later, listen).
+# Receive-only. Runs as wicked5mile on 127.0.0.1:8767. Needs to sudo `systemctl stop/start readsb`
+# to free the shared tuner (already covered by the existing NOPASSWD readsb sudoers entry) and USB
+# access to the RTL-SDR (wicked5mile is in plugdev). Not NoNewPrivileges, because it must sudo.
+#
+# Install (one-time, as wicked5mile):
+#   sudo cp webdash/host-helpers/sdr-bridge.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now sdr-bridge.service
+
+[Unit]
+Description=SDR broadcast/airband bridge for webdash (localhost only, receive-only)
+After=network.target
+
+[Service]
+Type=simple
+User=wicked5mile
+ExecStart=/usr/bin/python3 /home/user/clockworkpi-uconsole/webdash/host-helpers/sdr-bridge.py
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,17 @@
+# systemd USER unit: upload finished Kismet WiGLE CSVs to wigle.net, home-area rows removed.
+# Needs ~/.config/wigle/env (mode 600) with WIGLE_API_NAME / WIGLE_API_TOKEN and a home position —
+# see the docstring in wigle-upload.py and software/kismet.md §WiGLE export. Uploads nothing until
+# both are set.
+# Install (no sudo):
+#   mkdir -p ~/.config/systemd/user
+#   cp webdash/host-helpers/wigle-upload.{service,timer} ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now wigle-upload.timer
+# Verify:   systemctl --user list-timers wigle-upload.timer; journalctl --user -u wigle-upload -n 20
+# Rollback: systemctl --user disable --now wigle-upload.timer; rm ~/.config/systemd/user/wigle-upload.*
+[Unit]
+Description=Upload finished Kismet WiGLE CSVs to wigle.net (home area removed)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 %h/clockworkpi-uconsole/webdash/host-helpers/wigle-upload.py
+Nice=10

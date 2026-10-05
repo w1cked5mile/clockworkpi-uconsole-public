@@ -1,0 +1,40 @@
+Copyright (c) 2026 w1cked5mile
+
+This repository is dual-licensed by content type. Both licences let anyone use, study and learn
+from the material, and both REQUIRE ACKNOWLEDGEMENT when any part of it is reused in or
+integrated into other work: credit the author, link to the source and the licence, and say what
+was changed.
+
+1. Documentation and media — Creative Commons Attribution 4.0 International (CC BY 4.0)
+   Full text: LICENSES/CC-BY-4.0.txt   https://creativecommons.org/licenses/by/4.0/
+
+   Covers everything that is not listed under 2 or 3, including all Markdown (docs/, knowledge/,
+   software/, hardware/, presentation/, .claude/ agents and skills, README, CLAUDE.md, TODO,
+   CHANGELOG), the learning curriculum, and the photographs in images/.
+
+   Suggested attribution:
+     "Based on clockworkpi-uconsole by w1cked5mile, licensed CC BY 4.0
+      (https://creativecommons.org/licenses/by/4.0/)."
+
+2. Code and configuration — MIT License
+   Full text: LICENSES/MIT.txt
+
+   Covers webdash/ (application code, static assets, Dockerfile, compose and requirements files),
+   .claude/hooks/, .claude/scripts/, .claude/skills/**/scripts/, and the files in configs/ other
+   than those listed under 3. The MIT licence's acknowledgement condition is that the copyright
+   notice and licence text are kept in all copies or substantial portions.
+
+3. Third-party material — not covered by this licence
+   - configs/udev/99-kismet-nrf51822.rules, 99-kismet-nrf52840.rules, 99-kismet-nxp-kw41z.rules
+     are modified copies of rules shipped by the Kismet project and remain under Kismet's licence
+     (GPL-2.0; see https://www.kismetwireless.net/).
+   - Product names, logos and trademarks (ClockworkPi, uConsole, Raspberry Pi, HackerGadgets,
+     Meshtastic, and others) belong to their owners.
+   - External documents, datasheets and websites are linked, not copied, and stay under their own
+     terms.
+   - The webdash container image installs third-party packages under their own licences. One of
+     them, meshtastic (GPL-3.0-only), means a DISTRIBUTED webdash image is subject to GPL-3.0 terms.
+     This does not affect the MIT licence of the source in this repository.
+
+No warranty. This material describes RF equipment and procedures; you are responsible for
+following the laws that apply to you, including licensing rules for any transmission.

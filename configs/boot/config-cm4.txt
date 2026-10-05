@@ -1,0 +1,42 @@
+# ClockworkPi uConsole + AIO V2 — /boot/firmware/config.txt fragment (CM4)
+#
+# Source: HackerGadgets AIO V1/V2 setup guide, transcribed in
+# docs/reference/pinout-gpio.md. CM4 values only — CM5 differs (see that file).
+#
+# VERIFY BEFORE APPLYING: overlay names and parameters are image- and
+# kernel-dependent. Check `ls /boot/firmware/overlays/` on the running system
+# and re-read the vendor guide for the shipped board revision.
+#
+# Apply by appending to /boot/firmware/config.txt (Bookworm/Trixie path;
+# older images use /boot/config.txt), then reboot.
+#
+# Verify: after reboot, `ls /dev/rtc0 /dev/spidev1.* /dev/serial0` — all three present.
+# (the GPS UART is /dev/serial0 -> /dev/ttyS0 on this build, not /dev/ttyAMA0 --
+# onboard Bluetooth holds the PL011 as ttyAMA1; confirmed 2026-09-16)
+# Roll back: `sudo cp /boot/firmware/config.txt.bak /boot/firmware/config.txt` (copy it first).
+#   A bad config.txt can prevent boot; recover by mounting the boot partition on another
+#   machine and restoring the .bak. This is why the microSD stays in the kit.
+
+# --- RTC: PCF85063A on I2C, CR1220 backup ---
+dtparam=i2c_arm=on
+dtoverlay=i2c-rtc,pcf85063a
+
+# --- GPS: NMEA over the header UART (/dev/serial0, = ttyS0 on this build) ---
+# Also required on CM4: remove `console=serial0,115200` from cmdline.txt,
+# or the kernel console holds the UART and GPS output stops.
+enable_uart=1
+
+# --- LoRa: SX1262 on SPI1, one chip select ---
+dtparam=spi=on
+dtoverlay=spi1-1cs
+
+# --- Notes ---
+# * Rail power (GPS/LoRa/SDR/USB) is GPIO-switched by aiov2_ctl, not by this
+#   file. See docs/reference/pinout-gpio.md for the GPIO map.
+# * The SDR rail (BCM 7) defaults to off at boot on this build, confirmed by a
+#   post-reboot `aiov2_ctl --status` 2026-09-16 -- see docs/logs/decisions.md.
+#   (An earlier reading of aiov2_ctl's BOOT_DEFAULTS as an on-by-default dict
+#   was a misread of a state-inference fallback; the boot service reads
+#   /usr/local/share/aiov2_ctl/config.json instead, and this build has none.)
+# * SPI1 conflicts with the devterm-printer service on some Bookworm images —
+#   see configs/systemd/README.md.

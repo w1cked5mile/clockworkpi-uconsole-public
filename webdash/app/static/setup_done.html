@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Fancy Dashboard — scan this</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <form class="auth" action="/login">
+    <h1>Scan this now</h1>
+    <p class="hint">Add it to your authenticator app. This QR code is shown once — the secret is
+      not recoverable if you lose it; you'd need to delete the auth store on the host
+      (<code>~/.config/uconsole-webdash/</code>) and set up again.</p>
+    <div class="qr"><img src="data:image/svg+xml;base64,{{ qr_svg }}" alt="TOTP QR code" width="220" height="220" /></div>
+    <button type="submit">Done — go to login</button>
+  </form>
+</body>
+</html>

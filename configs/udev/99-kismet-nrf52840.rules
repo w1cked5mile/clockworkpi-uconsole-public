@@ -1,0 +1,5 @@
+# Fixed copy of Kismet's /etc/udev/rules.d/99-kismet-nrf52840.rules: $ doubled so udev passes it to sh, comma added.
+# Install: sudo install -m644 99-kismet-nrf52840.rules /etc/udev/rules.d/ && sudo udevadm control --reload
+# Verify: udevadm verify /etc/udev/rules.d/99-kismet-nrf52840.rules   Rollback: sudo rm /etc/udev/rules.d/99-kismet-nrf52840.rules && sudo apt install --reinstall -o Dpkg::Options::=--force-confmiss kismet-capture-nrf-52840
+#this rule symlinks compatible devices flashed with nrf zigbee sniffer firmware to /dev/nrf52840# with # starting at 1
+ACTION=="add", SUBSYSTEM=="tty", ATTRS{idVendor}=="1915", ATTRS{idProduct}=="154a", PROGRAM="/bin/sh -c 'echo $$(($$(ls /dev/nrf52840* 2>/dev/null| tail -n1 | sed -e s#/dev/nrf52840## )+1))'", SYMLINK+="nrf52840%c"

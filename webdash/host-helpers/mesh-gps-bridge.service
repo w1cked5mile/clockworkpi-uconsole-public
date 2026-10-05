@@ -1,0 +1,36 @@
+# Feed gpsd's live position into meshtasticd so this node shares location on the mesh.
+# Runs as wicked5mile on the HOST (not in the webdash container): it needs the `meshtastic`
+# Python library from ~/.venvs/meshtastic and talks only to localhost (gpsd 2947, meshtasticd
+# 4403) — the same trust boundary the other host bridges use. Read-only to the system; the only
+# state it changes is the node's fixed position over meshtasticd's admin API.
+#
+# Prerequisite, set once (not by the service):
+#   meshtastic --host localhost --set position.gps_mode NOT_PRESENT
+#
+# Install (one-time, as wicked5mile):
+#   sudo cp webdash/host-helpers/mesh-gps-bridge.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now mesh-gps-bridge.service
+# Verify:
+#   journalctl -u mesh-gps-bridge -f        # "sent position: grid=... fix=3D ..."
+# Roll back (service + the node's fixed-position state):
+#   sudo systemctl disable --now mesh-gps-bridge.service
+#   meshtastic --host localhost --remove-position
+#   meshtastic --host localhost --set position.gps_mode ENABLED   # only if restoring on-board GPS
+
+[Unit]
+Description=gpsd -> meshtasticd position bridge (localhost only)
+After=network.target gpsd.service meshtasticd.service
+Wants=gpsd.service
+
+[Service]
+Type=simple
+User=wicked5mile
+ExecStart=/home/user/.venvs/meshtastic/bin/python3 /home/user/clockworkpi-uconsole/webdash/host-helpers/mesh-gps-bridge.py
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

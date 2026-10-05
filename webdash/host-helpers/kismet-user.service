@@ -1,0 +1,32 @@
+# Kismet as a *user* systemd service, started on demand from the webdash Wi-Fi view.
+#
+# Why a user service rather than the packaged root kismet.service:
+#   - kismet_cap_linux_wifi carries file capabilities (cap_net_admin,cap_net_raw=eip) and
+#     wicked5mile is in the `kismet` group, so Kismet needs no root — only a *clean* exec. Started
+#     under the user manager it keeps those caps and can write ~/kismet-logs; spawned under the
+#     hardened aiov2-bridge unit (NoNewPrivileges, ProtectHome=read-only) it would get neither.
+#   - the root kismet.service crash-loops on this build (known issue) and has never logged a run.
+#
+# Install (one-time, as wicked5mile):
+#   mkdir -p ~/.config/systemd/user
+#   cp webdash/host-helpers/kismet-user.service ~/.config/systemd/user/kismet.service
+#   systemctl --user daemon-reload
+#   sudo loginctl enable-linger wicked5mile      # user manager runs headless / across reboots
+# Not enabled: the webdash Start button is the intended trigger, not boot.
+
+[Unit]
+Description=Kismet (Wi-Fi survey) — user service, webdash-managed
+Documentation=https://www.kismetwireless.net/
+ConditionPathExists=/usr/bin/kismet
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/kismet --no-ncurses-wrapper
+# A crash must not hammer-restart (that is exactly how the root unit crash-loops); recovery is one
+# deliberate Start from the webdash.
+Restart=no
+KillMode=process
+TimeoutStopSec=10
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,5 @@
+# Fixed copy of Kismet's /etc/udev/rules.d/99-kismet-nxp-kw41z.rules: $ doubled so udev passes it to sh, comma added.
+# Install: sudo install -m644 99-kismet-nxp-kw41z.rules /etc/udev/rules.d/ && sudo udevadm control --reload
+# Verify: udevadm verify /etc/udev/rules.d/99-kismet-nxp-kw41z.rules   Rollback: sudo rm /etc/udev/rules.d/99-kismet-nxp-kw41z.rules && sudo apt install --reinstall -o Dpkg::Options::=--force-confmiss kismet-capture-nxp-kw41z
+#this rule symlinks NXP KW41Z devices to /dev/nxp_kw41z# with # starting at 1
+ACTION=="add", SUBSYSTEM=="tty", ATTRS{idVendor}=="15a2", ATTRS{idProduct}=="0300", PROGRAM="/bin/sh -c 'echo $$(($$(ls /dev/nxp_kw41z* 2>/dev/null| tail -n1 | sed -e s#/dev/nxp_kw41z## )+1))'", SYMLINK+="nxp_kw41z%c"

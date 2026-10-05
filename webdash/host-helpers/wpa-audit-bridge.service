@@ -1,0 +1,28 @@
+# Localhost WPA-capture control bridge for the webdash (authorized auditing only).
+#
+# Unlike uconsole-aiov2-bridge.service, this is deliberately NOT NoNewPrivileges: it must sudo the
+# root capture script (scoped in /etc/sudoers.d/webdash-wpa-capture). It still binds 127.0.0.1 only
+# and runs as the unprivileged user; the only thing it can sudo is the one capture script.
+#
+# Install (one-time, as wicked5mile):
+#   sudo install -m0755 webdash/host-helpers/wpa-capture.sh /usr/local/sbin/uconsole-wpa-capture.sh
+#   sudo install -m0440 webdash/host-helpers/wpa-capture.sudoers /etc/sudoers.d/webdash-wpa-capture
+#   sudo visudo -cf /etc/sudoers.d/webdash-wpa-capture      # validate
+#   sudo cp webdash/host-helpers/wpa-audit-bridge.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now wpa-audit-bridge.service
+
+[Unit]
+Description=WPA-capture control bridge for webdash (localhost only, authorized auditing)
+After=network.target
+
+[Service]
+Type=simple
+User=wicked5mile
+# Needed so the bridge can drive the Kismet *user* service (stop before a capture, restore after).
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+ExecStart=/usr/bin/python3 /home/user/clockworkpi-uconsole/webdash/host-helpers/wpa-audit-bridge.py
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

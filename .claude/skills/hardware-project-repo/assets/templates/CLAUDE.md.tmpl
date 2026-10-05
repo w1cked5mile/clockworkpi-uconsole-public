@@ -1,0 +1,72 @@
+# CLAUDE.md
+
+Guidance for Claude Code (and any other agent) working in this repository.
+
+## What this repo is
+
+Documentation, configuration, and knowledge capture for {{NAME}}.
+
+It is **not** a software project: there is no build, no test suite, no linter. Changes are prose,
+tables, checklists, and config files that get applied to a device by hand. "Correct" here means
+accurate, sourced, and reproducible — not compiling.
+
+## Build state (keep current)
+
+As of {{DATE}}: <parts ordered / in transit / on the bench>. **Nothing in this repo has been
+executed on the hardware** until the bring-up checklist says otherwise. Anything asserting device
+behavior is sourced from vendor docs, upstream source, or community reports and carries a verify
+marker.
+
+Open blockers: see [`TODO.md`](TODO.md) and [`docs/accessories.md`](docs/accessories.md).
+
+## Where things belong
+
+| If it is… | It goes in |
+|---|---|
+| A hardware fact about a component | `hardware/specs/`, or `docs/reference/` for pin maps |
+| A link to an upstream datasheet or schematic | `hardware/datasheets/README.md` |
+| A repeatable procedure | `docs/runbooks/` |
+| A pass/fail list run once at a milestone | `docs/checklists/` |
+| Setup notes for one application | `software/<app>.md` |
+| A file that gets copied onto the device | `configs/<subsystem>/` |
+| A purchase, order, invoice, or warranty fact | `docs/records/` |
+| Durable domain understanding | `knowledge/<discipline>/learned/` |
+| A dated observation or capture | `knowledge/<discipline>/findings/` |
+| A dated account of what was done | `docs/logs/build-log.md` |
+
+Cross-link with **relative** links. Every document should be reachable from [`README.md`](README.md).
+
+## Conventions
+
+- **Verify markers.** Anything not confirmed on this hardware says so, in the sentence that makes
+  the claim — "*unverified*", "verify before running", or a named command that settles it.
+- **Estimates are labelled** and name the command whose output replaces them.
+- **UTC timestamps.** Location recorded as city or grid square only — never precise coordinates.
+- **No secrets.** No keys, PSKs, passwords, tokens, or captured credentials.
+- **Binaries stay out.** Reference images and captures by location and checksum.
+- **Commands are runnable.** State the expected output when it is the point of the step.
+- **Tables over paragraphs**; checkbox lists for anything performed once. Markdown only.
+
+## Living documents — update as a side effect of work
+
+| File | Update when |
+|---|---|
+| [`docs/logs/build-log.md`](docs/logs/build-log.md) | Any hands-on session |
+| [`docs/logs/known-issues.md`](docs/logs/known-issues.md) | A symptom is hit or resolved |
+| [`docs/logs/decisions.md`](docs/logs/decisions.md) | A choice is made or a question closes |
+| [`docs/logs/firmware-versions.md`](docs/logs/firmware-versions.md) | Anything is flashed |
+| [`docs/records/order-and-warranty.md`](docs/records/order-and-warranty.md) | Shipping/serial/RMA changes |
+| [`CHANGELOG.md`](CHANGELOG.md) / [`TODO.md`](TODO.md) | Work lands / a blocker appears |
+
+## Checks before committing
+
+```bash
+python3 scripts/check_links.py    # no broken relative links
+git status --short                # nothing unexpected staged
+```
+
+## Git
+
+- Work on a feature branch; do not commit to the default branch directly.
+- Commit messages: imperative subject, body explaining *why* the documentation changed and what is
+  still unverified.

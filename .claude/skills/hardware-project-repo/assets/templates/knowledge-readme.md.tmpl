@@ -1,0 +1,36 @@
+# Knowledge base
+
+Domain understanding that this build feeds. Organized by discipline so it survives the device.
+
+## Disciplines
+
+| Discipline | Index |
+|---|---|
+{{DISCIPLINE_ROWS}}
+
+## How each discipline folder is organized
+
+```
+<discipline>/
+  README.md     scope + curated links + index of what is here
+  learned/      durable understanding (concepts, techniques, limits)
+  configs/      tool configuration with rationale
+  runbooks/     repeatable procedures
+  findings/     dated observations
+```
+
+`learned/` holds understanding; `findings/` holds evidence. Do not mix them. `findings/` stays
+empty until there is hardware to observe.
+
+## Conventions
+
+- Timestamps in UTC; location as city or grid square only.
+- Cite upstream sources; mark version-dependent steps "verify before running".
+- No secrets, credentials, or precise private locations.
+- Cross-link back to the device documentation in [`../docs/`](../docs/).
+
+## Legal and safety posture
+
+State what this platform is **for** and what is out of scope, specific to these disciplines —
+licensing, authorization, privacy, and physical safety. Scope decisions belong here where they can
+be reviewed.

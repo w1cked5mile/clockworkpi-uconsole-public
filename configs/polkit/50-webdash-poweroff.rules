@@ -1,0 +1,15 @@
+// Let the webdash host bridge (uconsole-aiov2-bridge.service, User=wicked5mile) power the device
+// off through logind. From a system service there is no login session, so logind otherwise
+// answers "challenge" (asks for a password) and the shutdown fails. Scoped to this one user and
+// to power-off only: no reboot, no ignoring inhibitor locks. That user already has passwordless
+// sudo, so this grants nothing new, it just works without sudo (the bridge runs with
+// NoNewPrivileges=true, which blocks sudo).
+// Install: sudo install -m 644 configs/polkit/50-webdash-poweroff.rules /etc/polkit-1/rules.d/
+// Verify: sudo systemd-run --quiet --uid=wicked5mile --pipe --wait busctl call org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager CanPowerOff   (expect: s "yes")   Rollback: sudo rm /etc/polkit-1/rules.d/50-webdash-poweroff.rules
+polkit.addRule(function (action, subject) {
+  if ((action.id == "org.freedesktop.login1.power-off" ||
+       action.id == "org.freedesktop.login1.power-off-multiple-sessions") &&
+      subject.user == "wicked5mile") {
+    return polkit.Result.YES;
+  }
+});

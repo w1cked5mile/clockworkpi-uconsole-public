@@ -1,0 +1,37 @@
+# /etc/default/gpsd — AIO V2 GNSS on the CM4 primary UART
+#
+# Prerequisites:
+#   * enable_uart=1 in config.txt          (configs/boot/config-cm4.txt)
+#   * console=serial0,115200 removed       (configs/boot/cmdline-notes.md)
+#   * GPS rail powered:  aiov2_ctl GPS on
+#
+# Apply:
+#   sudo cp gpsd.default /etc/default/gpsd
+#   sudo systemctl restart gpsd
+# Verify:
+#   cgps -s        # or: gpspipe -r -n 10
+#
+# Roll back:
+#   sudo cp /etc/default/gpsd.bak /etc/default/gpsd && sudo systemctl restart gpsd
+#   (take the .bak before first apply; `sudo systemctl disable --now gpsd` stops it entirely)
+
+# Start gpsd at boot rather than only on socket activation.
+START_DAEMON="true"
+
+# The AIO GNSS is wired to GPIO14/15 (the header UART), which on this build is
+# /dev/serial0 -> /dev/ttyS0 (mini-UART) -- the CM4's onboard Bluetooth holds the
+# full PL011 (registered as ttyAMA1, not ttyAMA0; /dev/ttyAMA0 does not exist on
+# this image). Confirmed 2026-09-16 by reading NMEA off /dev/serial0 after
+# `aiov2_ctl GPS on`. Use the stable symlink so this keeps working regardless of
+# which raw tty node the kernel assigns. See docs/logs/decisions.md.
+DEVICES="/dev/serial0"
+
+# -n : poll the receiver even with no client attached (fix stays warm)
+# -b : read-only, never write to the device (safe default for unknown modules)
+GPSD_OPTIONS="-n -b"
+
+# Let gpsd own the device rather than socket-activating per client.
+USBAUTO="false"
+
+# Most modules default to 9600 8N1. If NMEA looks like garbage, try 38400 or 115200:
+#   stty -F /dev/serial0 9600 && timeout 5 cat /dev/serial0

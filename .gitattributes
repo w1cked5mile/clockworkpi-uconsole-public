@@ -1,0 +1,8 @@
+* text=auto eol=lf
+
+# Raw RF captures are binary
+*.iq binary
+*.cf32 binary
+*.cs8 binary
+*.cu8 binary
+*.sigmf-data binary

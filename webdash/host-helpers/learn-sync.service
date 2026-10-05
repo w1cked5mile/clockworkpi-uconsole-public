@@ -1,0 +1,14 @@
+# systemd USER unit: recompile the learning bundle from main and flag drifted lessons.
+# Install (no sudo — runs as the owner, who owns the repo and ~/.local/share/uconsole-webdash):
+#   mkdir -p ~/.config/systemd/user
+#   cp webdash/host-helpers/learn-sync.{service,timer} ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now learn-sync.timer
+# Verify:   systemctl --user list-timers learn-sync.timer; journalctl --user -u learn-sync -n 20
+# Rollback: systemctl --user disable --now learn-sync.timer; rm ~/.config/systemd/user/learn-sync.*
+[Unit]
+Description=Compile the webdash learning bundle from main (learn-sync)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 %h/clockworkpi-uconsole/webdash/host-helpers/learn-sync.py
+Nice=10

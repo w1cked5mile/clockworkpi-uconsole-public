@@ -1,0 +1,12 @@
+# User service for first-packet-alert.sh — see that file's header for install/verify/rollback.
+[Unit]
+Description=Alert once when meshtasticd receives its first LoRa packet
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/meshtastic-first-packet-alert
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target

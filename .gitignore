@@ -1,0 +1,57 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+
+# Build / archives
+*.log
+*.tmp
+*.zip
+*.7z
+*.img
+*.img.xz
+*.bz2
+
+# Large binaries — track with Git LFS instead if needed
+*.iso
+
+# Raw RF captures (keep out of git; use LFS if needed)
+*.iq
+*.cf32
+*.cs8
+*.cu8
+*.sigmf-data
+
+# Kismet capture logs — MACs and precise coordinates, never commit
+*.kismet
+*.kismetdb
+*.kismet-journal
+*.wiglecsv
+
+# Packet and Bluetooth HCI captures (Kismet pcap export, btmon -w) — device addresses, never commit
+*.pcap
+*.pcapng
+*.btsnoop
+*.snoop
+
+# WPA/WPA2 handshake captures and anything derived from cracking — secrets, never commit
+*.cap
+*.hccapx
+*.hc22000
+
+# Lab outputs (learning platform) — recordings, sweeps and raw decoder audio; write them to ~/labs/
+*.wav
+*.csv
+*.raw
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Rendered deck — build artifact, regenerate from the Markdown (see presentation/README.md)
+presentation/talk.pdf
+presentation/talk.html
+presentation/talk.pptx

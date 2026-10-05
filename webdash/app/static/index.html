@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fancy Dashboard</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <!-- Skin selection applied before first paint, so switching skins never flashes the
+       default. Default skin ("chart") leaves the attribute unset; see styles.css. -->
+  <script>
+    try {
+      var s = localStorage.getItem("fancy.v1.skin");
+      if (s && s !== "chart") document.documentElement.setAttribute("data-skin", s);
+    } catch (e) { /* private window: fall back to default skin */ }
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <!-- Status strip: always visible. Rail chips lead to the station each rail powers. -->
+  <header class="strip">
+    <a class="brand" href="#/" data-nav="overview" title="Overview">Fancy</a>
+    <span class="strip-item" id="strip-power" title="Power source and pack voltage">—</span>
+    <span class="strip-item" id="strip-temp" title="CPU temperature">—</span>
+    <nav class="rail-chips" aria-label="Power rails">
+      <a class="rail-chip" data-rail="GPS" href="#/gps">GPS</a>
+      <a class="rail-chip" data-rail="LORA" href="#/mesh">LORA</a>
+      <a class="rail-chip" data-rail="SDR" href="#/sdr">SDR</a>
+      <a class="rail-chip" data-rail="USB" href="#/wifi">USB</a>
+    </nav>
+    <span class="strip-spacer"></span>
+    <a class="strip-item learn-chip" href="#/learn" data-nav="learn" title="The Chart Table: lessons and labs">◆ Learn</a>
+    <span id="conn-state" class="strip-item" role="status" aria-live="polite">connecting…</span>
+    <a class="strip-item" href="/logout">log out</a>
+  </header>
+
+  <main id="main">
+    <!-- Overview: one tile per station. System and Power on top, the four rail stations below. -->
+    <section class="view" data-view="overview" aria-labelledby="overview-title">
+      <h1 class="view-title visually-hidden" id="overview-title" tabindex="-1">Overview</h1>
+      <div class="tiles">
+        <article class="tile" aria-labelledby="tile-system-title">
+          <header class="tile-head">
+            <h2 id="tile-system-title"><a href="#/system">System <span class="sub">hull &amp; engine</span></a></h2>
+            <span class="status" data-status="system"></span>
+          </header>
+          <div class="hero"><span class="hero-num" id="tile-system-hero">—</span><span class="hero-cap" id="tile-system-caption"></span></div>
+          <div class="facts" id="tile-system-facts"></div>
+          <footer class="tile-foot">
+            <a class="tile-link" href="#/system">Details →</a>
+          </footer>
+        </article>
+
+        <article class="tile" aria-labelledby="tile-power-title">
+          <header class="tile-head">
+            <h2 id="tile-power-title"><a href="#/power">Power <span class="sub">switchboard</span></a></h2>
+            <span class="status" data-status="power"></span>
+          </header>
+          <div class="hero"><span class="hero-num" id="tile-power-hero">—</span><span class="hero-cap" id="tile-power-caption"></span></div>
+          <div class="facts" id="tile-power-facts"></div>
+          <footer class="tile-foot">
+            <a class="tile-link" href="#/power">All rails →</a>
+          </footer>
+        </article>
+
+        <article class="tile" aria-labelledby="tile-mesh-title">
+          <header class="tile-head">
+            <h2 id="tile-mesh-title"><a href="#/mesh">Meshtastic <span class="sub">LoRa · hailing</span></a></h2>
+            <span class="status" data-status="mesh"></span>
+          </header>
+          <div class="hero"><span class="hero-num" id="tile-mesh-hero">—</span><span class="hero-cap" id="tile-mesh-caption"></span></div>
+          <div class="facts" id="tile-mesh-facts"></div>
+          <footer class="tile-foot">
+            <span class="rail-ctl"><button type="button" class="rail-switch" role="switch" data-feature="LORA" aria-label="LORA rail"></button> LORA</span>
+            <a class="tile-link" id="tile-mesh-link" href="#/mesh">Details →</a>
+          </footer>
+          <div class="switch-error" role="alert"></div>
+        </article>
+
+        <article class="tile" aria-labelledby="tile-gps-title">
+          <header class="tile-head">
+            <h2 id="tile-gps-title"><a href="#/gps">GPS <span class="sub">GNSS · sextant</span></a></h2>
+            <span class="status" data-status="gps"></span>
+          </header>
+          <div class="hero"><span class="hero-num" id="tile-gps-hero">—</span><span class="hero-cap" id="tile-gps-caption"></span></div>
+          <div class="facts" id="tile-gps-facts"></div>
+          <footer class="tile-foot">
+            <span class="rail-ctl"><button type="button" class="rail-switch" role="switch" data-feature="GPS" aria-label="GPS rail"></button> GPS</span>
+            <a class="tile-link" href="#/gps">Details →</a>
+          </footer>
+          <div class="switch-error" role="alert"></div>
+        </article>
+
+        <article class="tile" aria-labelledby="tile-sdr-title">
+          <header class="tile-head">
+            <h2 id="tile-sdr-title"><a href="#/sdr">ADS-B <span class="sub">SDR · lookout</span></a></h2>
+            <span class="status" data-status="sdr"></span>
+          </header>
+          <div class="hero"><span class="hero-num" id="tile-sdr-hero">—</span><span class="hero-cap" id="tile-sdr-caption"></span></div>
+          <div class="facts" id="tile-sdr-facts"></div>
+          <footer class="tile-foot">
+            <span class="rail-ctl"><button type="button" class="rail-switch" role="switch" data-feature="SDR" aria-label="SDR rail"></button> SDR</span>
+            <a class="tile-link" href="#/sdr">Details →</a>
+          </footer>
+          <div class="switch-error" role="alert"></div>
+        </article>
+
+        <article class="tile" aria-labelledby="tile-wifi-title">
+          <header class="tile-head">
+            <h2 id="tile-wifi-title"><a href="#/wifi">Wi-Fi survey <span class="sub">Kismet · harbour survey</span></a></h2>
+            <span class="status" data-status="wifi"></span>
+          </header>
+          <div class="hero"><span class="hero-num" id="tile-wifi-hero">—</span><span class="hero-cap" id="tile-wifi-caption"></span></div>
+          <div class="facts" id="tile-wifi-facts"></div>
+          <footer class="tile-foot">
+            <span class="rail-ctl"><button type="button" class="rail-switch" role="switch" data-feature="USB" aria-label="USB rail"></button> USB</span>
+            <a class="tile-link" href="#/wifi">Details →</a>
+          </footer>
+          <div class="switch-error" role="alert"></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- Detail views: the existing panels, one per route. -->
+    <section class="view" data-view="mesh" aria-labelledby="mesh-title" hidden>
+      <div class="view-head">
+        <a class="back" href="#/">← Overview</a>
+        <h1 class="view-title" id="mesh-title" tabindex="-1">Meshtastic</h1>
+        <span class="status" data-status="mesh"></span>
+      </div>
+      <div class="panel">
+        <div id="mesh-body">—</div>
+        <div class="mesh-log" id="mesh-log" aria-live="polite"><div class="panel-empty">No messages yet.</div></div>
+        <form class="mesh-send" id="mesh-send-form" autocomplete="off">
+          <select id="mesh-channel" aria-label="Channel"></select>
+          <input id="mesh-text" type="text" maxlength="200" placeholder="Message the mesh…" aria-label="Message" required>
+          <button type="submit" id="mesh-send-btn">Send</button>
+        </form>
+        <div class="mesh-send-status" id="mesh-send-status"></div>
+        <a class="open-link" id="mesh-link" href="#" target="_blank" rel="noopener" style="display:none">Open Meshtastic UI ↗</a>
+        <div class="embed-off" id="mesh-webui-note">Meshtastic's own web app isn't answering. It runs inside meshtasticd, so it needs the LORA rail on and the service running. Meanwhile, use the message box above, the <code>meshtastic</code> CLI, or the phone app over the network.</div>
+        <div class="panel-foot"><span class="rail-ctl"><button type="button" class="rail-switch" role="switch" data-feature="LORA" aria-label="LORA rail"></button> LORA rail</span></div>
+        <div class="switch-error" role="alert"></div>
+      </div>
+    </section>
+
+    <section class="view" data-view="gps" aria-labelledby="gps-title" hidden>
+      <div class="view-head">
+        <a class="back" href="#/">← Overview</a>
+        <h1 class="view-title" id="gps-title" tabindex="-1">GPS (gpsd)</h1>
+        <span class="status" data-status="gps"></span>
+      </div>
+      <div class="panel">
+        <div id="gps-body">—</div>
+        <p class="hint">Position is shown as a Maidenhead grid square by default, matching how this repo records location.</p>
+        <button type="button" class="btn" id="gps-coords-btn" aria-pressed="false">Show coordinates</button>
+        <div class="panel-foot"><span class="rail-ctl"><button type="button" class="rail-switch" role="switch" data-feature="GPS" aria-label="GPS rail"></button> GPS rail</span></div>
+        <div class="switch-error" role="alert"></div>
+      </div>
+    </section>
+
+    <section class="view" data-view="sdr" aria-labelledby="sdr-title" hidden>
+      <div class="view-head">
+        <a class="back" href="#/">← Overview</a>
+        <h1 class="view-title" id="sdr-title" tabindex="-1">SDR — pick an application</h1>
+        <span class="status" data-status="sdr"></span>
+      </div>
+      <div class="panel">
+        <h2 class="panel-title">ADS-B — aircraft (readsb)</h2>
+        <p class="hint">Turning the SDR rail on only powers the tuner — it no longer starts ADS-B by
+          itself. The three applications below share the single RTL-SDR, so starting one stops the
+          others.</p>
+        <div class="sdr-app-ctl">
+          <button type="button" class="btn" id="adsb-start">Start ADS-B</button>
+          <button type="button" class="btn danger" id="adsb-stop" style="display:none">⏹ Stop ADS-B</button>
+          <span class="ctl-error" id="adsb-error" role="alert"></span>
+        </div>
+        <div id="adsb-body">—</div>
+        <div class="panel-foot"><span class="rail-ctl"><button type="button" class="rail-switch" role="switch" data-feature="SDR" aria-label="SDR rail"></button> SDR rail</span></div>
+        <div class="switch-error" role="alert"></div>
+        <a class="open-link" id="adsb-link" href="/apps/tar1090/" target="_blank" rel="noopener" style="display:none">Open map in a new tab ↗</a>
+      </div>
+
+      <div class="panel sdr-hunt">
+        <h2 class="panel-title">Broadcast &amp; airband hunt</h2>
+        <p class="hint">Receive-only sweep for local signals. Uses the one SDR tuner, so stop ADS-B
+          first if it's running; the tuner stays free for listening afterward. Turn the SDR rail on
+          first.</p>
+        <div class="sdr-hunt-ctl">
+          <label>Band<select id="sdr-band">
+            <option value="fm">FM broadcast (88–108 MHz)</option>
+            <option value="airband">Airband (118–137 MHz AM)</option>
+          </select></label>
+          <button type="button" class="btn" id="sdr-scan">Scan</button>
+          <span class="sdr-hunt-status" id="sdr-hunt-status"></span>
+          <span class="ctl-error" id="sdr-hunt-error" role="alert"></span>
+        </div>
+        <table class="sdr-list" id="sdr-list"><thead><tr>
+          <th>Frequency</th><th>Signal</th><th>SNR</th><th></th>
+        </tr></thead><tbody id="sdr-list-body"><tr><td colspan="4" class="dim">No scan yet.</td></tr></tbody></table>
+
+        <div class="sdr-listen">
+          <h3 class="panel-subtitle">Listen</h3>
+          <div class="sdr-listen-ctl">
+            <label>NOAA weather<select id="sdr-noaa">
+              <option value="162400000" selected>162.400 (WX2)</option>
+              <option value="162425000">162.425 (WX4)</option>
+              <option value="162450000">162.450 (WX5)</option>
+              <option value="162475000">162.475 (WX3)</option>
+              <option value="162500000">162.500 (WX6)</option>
+              <option value="162525000">162.525 (WX7)</option>
+              <option value="162550000">162.550 (WX1)</option>
+            </select></label>
+            <span class="hint" id="sdr-noaa-auto"></span>
+            <button type="button" class="btn" id="sdr-noaa-listen">Listen</button>
+            <button type="button" class="btn danger" id="sdr-stop" style="display:none">⏹ Stop</button>
+            <span class="sdr-now" id="sdr-now"></span>
+          </div>
+          <div class="sdr-listen-ctl">
+            <button type="button" class="btn" id="sdr-scan-listen">▶ Scan airband</button>
+            <label>squelch<input id="sdr-squelch" type="number" min="1" max="2000" value="150" class="sq-input"></label>
+            <span class="hint" id="sdr-scan-note">Cycles airband channels and pauses on traffic. Run an Airband hunt first to scan just the live ones; otherwise it sweeps 118–137&nbsp;MHz (slower). Press Stop to end.</span>
+          </div>
+          <audio id="sdr-audio" preload="none"></audio>
+          <span class="ctl-error" id="sdr-listen-error" role="alert"></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" data-view="wifi" aria-labelledby="wifi-title" hidden>
+      <div class="view-head">
+        <a class="back" href="#/">← Overview</a>
+        <h1 class="view-title" id="wifi-title" tabindex="-1">Wi-Fi survey (Kismet)</h1>
+        <span class="status" data-status="wifi"></span>
+      </div>
+      <div class="panel">
+        <div id="kismet-body">—</div>
+        <p class="hint">Kismet only listens: it records what nearby devices broadcast and never connects to them.
+          It isn't started at boot — use the button below.</p>
+        <div class="kismet-ctl">
+          <button type="button" class="btn" id="kismet-toggle" data-action="start">Start Kismet</button>
+          <span class="ctl-error" id="kismet-error" role="alert"></span>
+        </div>
+        <a class="open-link" id="kismet-link" href="#" target="_blank" rel="noopener" style="display:none">Open Kismet UI ↗</a>
+        <div class="panel-foot"><span class="rail-ctl"><button type="button" class="rail-switch" role="switch" data-feature="USB" aria-label="USB rail"></button> USB rail</span></div>
+        <div class="switch-error" role="alert"></div>
+      </div>
+
+      <div class="panel wpa-audit">
+        <h2 class="panel-title">WPA audit — authorized equipment only</h2>
+        <p class="warn" role="note">Active auditing (deauth + handshake capture) runs <strong>only</strong>
+          against a BSSID on the allowlist below — equipment you own or have written authorization to
+          test. Adding a BSSID here is your authorization assertion; the host enforces it.</p>
+
+        <form id="wpa-add-form" class="wpa-add" autocomplete="off">
+          <label>BSSID<input type="text" id="wpa-bssid" placeholder="AA:BB:CC:DD:EE:FF"
+            pattern="([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}" maxlength="17" required></label>
+          <label>Authorization basis<input type="text" id="wpa-basis" placeholder="owned / engagement ref"
+            maxlength="128" required></label>
+          <label>SSID label <span class="dim">(optional)</span><input type="text" id="wpa-ssid"
+            placeholder="my-ap" maxlength="64"></label>
+          <button type="submit" class="btn">Authorize BSSID</button>
+          <span class="ctl-error" id="wpa-add-error" role="alert"></span>
+        </form>
+
+        <table class="wpa-list" id="wpa-list"><thead><tr>
+          <th>BSSID</th><th>SSID</th><th>Basis</th><th>Added</th><th></th>
+        </tr></thead><tbody id="wpa-list-body"><tr><td colspan="5" class="dim">—</td></tr></tbody></table>
+
+        <div class="wpa-capture">
+          <h3 class="panel-subtitle">Capture handshake</h3>
+          <p class="hint">Sends a few bounded, targeted deauth frames at the selected authorized AP to
+            force a handshake, captures it, and reports the result. Kismet is paused during capture
+            and restored after.</p>
+          <div class="wpa-cap-ctl">
+            <label>Target<select id="wpa-cap-target"><option value="">— no authorized BSSID —</option></select></label>
+            <button type="button" class="btn" id="wpa-cap-start" disabled>Start capture</button>
+            <button type="button" class="btn danger" id="wpa-cap-cancel" style="display:none">Cancel</button>
+          </div>
+          <div class="wpa-cap-status" id="wpa-cap-status"></div>
+          <span class="ctl-error" id="wpa-cap-error" role="alert"></span>
+
+          <div class="wpa-crack" id="wpa-crack" style="display:none">
+            <p class="hint">Offload the captured handshake to the GPU host (gpu-host) to recover
+              the passphrase. Runs over the tailnet; the host must be online. The recovered key is
+              shown here and not stored.</p>
+            <button type="button" class="btn" id="wpa-crack-start">Send to gpu-host (crack)</button>
+            <div class="wpa-crack-status" id="wpa-crack-status"></div>
+            <div class="wpa-crack-result" id="wpa-crack-result"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" data-view="power" aria-labelledby="power-title" hidden>
+      <div class="view-head">
+        <a class="back" href="#/">← Overview</a>
+        <h1 class="view-title" id="power-title" tabindex="-1">Power &amp; rails</h1>
+        <span class="status" data-status="power"></span>
+      </div>
+      <div class="panel">
+        <p class="hint">Each switch powers one radio on the AIO V2 board. Off means no power and no signal.</p>
+        <div class="rail-grid">
+          <div class="rail-card"><span class="rail-name">GPS <span class="dim">→ gpsd</span></span><button type="button" class="rail-switch" role="switch" data-feature="GPS" aria-label="GPS rail"></button></div>
+          <div class="rail-card"><span class="rail-name">LORA <span class="dim">→ Meshtastic</span></span><button type="button" class="rail-switch" role="switch" data-feature="LORA" aria-label="LORA rail"></button></div>
+          <div class="rail-card"><span class="rail-name">SDR <span class="dim">→ pick an app</span></span><button type="button" class="rail-switch" role="switch" data-feature="SDR" aria-label="SDR rail"></button></div>
+          <div class="rail-card"><span class="rail-name">USB <span class="dim">→ internal USB-C (Wi-Fi)</span></span><button type="button" class="rail-switch" role="switch" data-feature="USB" aria-label="USB rail"></button></div>
+        </div>
+        <div class="rail-error" id="rail-error" role="alert"></div>
+        <div id="power-body">—</div>
+        <div class="row"><span class="k">Throttle</span><span class="v" id="power-throttle">—</span></div>
+      </div>
+    </section>
+
+    <section class="view" data-view="system" aria-labelledby="system-title" hidden>
+      <div class="view-head">
+        <a class="back" href="#/">← Overview</a>
+        <h1 class="view-title" id="system-title" tabindex="-1">System</h1>
+        <span class="status" data-status="system"></span>
+      </div>
+      <div class="panel">
+        <div class="row"><span class="k">CPU</span><span class="v" id="sys-cpu">—</span></div>
+        <div class="row"><span class="k">Load (1/5/15m)</span><span class="v" id="sys-load">—</span></div>
+        <div class="row"><span class="k">Memory</span><span class="v" id="sys-mem">—</span></div>
+        <div class="row"><span class="k">Disk</span><span class="v" id="sys-disk">—</span></div>
+        <div class="row"><span class="k">CPU temp</span><span class="v" id="sys-temp">—</span></div>
+        <div class="row"><span class="k">Avg temp (1h)</span><span class="v" id="sys-temp-avg">—</span></div>
+        <div class="row"><span class="k">Uptime</span><span class="v" id="sys-uptime">—</span></div>
+      </div>
+    </section>
+
+    <!-- Learning platform ("the Chart Table"). Rendered by js/learn.js from /api/learn/*. -->
+    <section class="view" data-view="learn" aria-label="Learn" hidden>
+      <div id="learn-root" class="learn"></div>
+    </section>
+
+    <p class="tagline">Fancy: a listening station named for the frigate <i>Fancy</i>, 1695.</p>
+  </main>
+
+  <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>

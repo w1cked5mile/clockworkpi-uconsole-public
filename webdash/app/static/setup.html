@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Fancy Dashboard — first-run setup</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <form class="auth" method="post" action="/setup">
+    <h1>Fancy Dashboard</h1>
+    <p class="tagline">named for The Fancy, Henry Every's frigate, 1695</p>
+    <p class="hint">First-run setup — this runs once. It creates the admin account and shows a
+      TOTP QR code you won't see again — scan it now.</p>
+    <label>Username</label>
+    <input name="username" autocomplete="username" required autofocus />
+    <label>Password (min 8 characters)</label>
+    <input type="password" name="password" autocomplete="new-password" minlength="8" required />
+    <button type="submit">Create account</button>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  </form>
+</body>
+</html>

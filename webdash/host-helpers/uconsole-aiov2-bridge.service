@@ -1,0 +1,21 @@
+[Unit]
+Description=aiov2_ctl status bridge for webdash (localhost only)
+After=network.target
+
+[Service]
+Type=simple
+User=wicked5mile
+# POST /kismet runs `systemctl --user start|stop kismet.service`; that needs the user bus, which
+# is addressed via XDG_RUNTIME_DIR. Kismet itself runs under the user manager, not this process,
+# so the hardening below (which would strip its file caps / block its log writes) does not reach
+# it. Requires lingering: `sudo loginctl enable-linger wicked5mile`.
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+ExecStart=/usr/bin/python3 /home/user/clockworkpi-uconsole/webdash/host-helpers/aiov2-bridge.py
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target
