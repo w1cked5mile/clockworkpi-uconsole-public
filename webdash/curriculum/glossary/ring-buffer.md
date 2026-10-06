@@ -11,7 +11,7 @@ example: 420
 ---
 
 Fancy's tap defaults to about 10 files of ~10 MB, so roughly 100 MB at most, in `~/labs/tshark`. It
-can never fill the SD card. The tap reads only the newest segment to build its summary, which keeps
+can never fill the disk (root is on the 234 GB NVMe). The tap reads only the newest segment to build its summary, which keeps
 the cost low on the Pi. On a busy link the ring may only hold the last minute or two — make the
 files bigger, or the capture filter narrower, when you need to keep more of the window around a rare
 event.

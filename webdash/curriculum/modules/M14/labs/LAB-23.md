@@ -28,7 +28,7 @@ steps:
     text: "Read the protocols list on the panel (the top protocols by packet count for the newest ring segment). Recognise the shape: mostly background and your pings on an idle link, or bulk TCP/QUIC if something is downloading."
     check: {type: attest, prompt: "I read the protocol list and recognised the shape of the traffic."}
   - id: anomalies
-    text: "Read the four findings: tcp_retransmit, tcp_dup_ack, tcp_reset and icmp_unreachable. On a healthy link all four sit at or near zero. If wlan0 is on a weak signal, watch whether retransmits and dup-acks climb while you ping — that climb is loss on a marginal link, the symptom behind the wlan0 stutter."
+    text: "Read the four findings: tcp_retransmit, tcp_dup_ack, tcp_reset and icmp_unreachable. On a healthy link all four sit at or near zero — and since wlan0's power-save was disabled (2026-09-30) that clean baseline is what you should expect to see now. The climbing retransmit/dup-ack pattern is what the link showed *before* that fix; if it ever returns, that is the symptom behind the old wlan0 stutter."
     check: {type: attest, prompt: "I read the four findings and I know that zero of the three TCP signals is the healthy baseline, and that a climbing retransmit/dup-ack count points at loss on a weak link."}
   - id: stop
     text: "Let the capture run out its 120 s, or press Stop. The capture ends and nothing is left running."

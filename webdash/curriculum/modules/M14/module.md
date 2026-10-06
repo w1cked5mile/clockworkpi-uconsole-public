@@ -20,8 +20,8 @@ objectives:
   - "**Run** a short passive capture on one of Fancy's own interfaces and read the address-free summary as it fills."
 est_minutes: 90
 today:
-  state: degraded
-  reason: "The capture tap (tshark-bridge on 127.0.0.1:8768, the dumpcap/tshark wrapper via scoped sudoers) was added 2026-10-06 and is *unverified end-to-end on Fancy* — whether dumpcap/tshark are installed, the sudoers entry resolves, and the summary populates is confirmed by the first lab step (`tshark.state` = ok). The lessons and the reading method work regardless. The lab captures on `wlan0`, Fancy's own link — the one with the known weak-signal stutter — so the findings it shows are real."
+  state: ready
+  reason: "The capture tap (tshark-bridge on 127.0.0.1:8768, the dumpcap/tshark wrapper via scoped sudoers) was added and *verified end-to-end on Fancy 2026-10-06*: a capture on `wlan0` runs, `tshark.running` goes true, `tshark.stage` reaches `capturing`, `segment_packets` rises, and the findings and protocol mix populate. Note that LAB-23 step 1 (`tshark.state` = ok) only proves the bridge is reachable — the collector reports `ok` whenever its HTTP read succeeds, regardless of capture health; the real end-to-end proof is steps 2–4 (`tshark.running` true, `tshark.stage` = capturing, `segment_packets` rising). The lab captures on `wlan0`, Fancy's own link, so the findings it shows are real."
 ---
 
 When a link stutters, guessing is slow and a capture is fast: it shows you exactly which frames

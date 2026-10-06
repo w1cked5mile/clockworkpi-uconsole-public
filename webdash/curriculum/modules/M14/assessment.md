@@ -52,7 +52,7 @@ items:
       - "Packets being lost in flight on a marginal link — the weak-signal loss pattern"
       - "A service refusing connections"
     answer: 1
-    explanation: Retransmits and dup-acks both mean loss; climbing while associated-but-slow is the fingerprint of a weak link, as measured on wlan0 before power-save was disabled.
+    explanation: Retransmits and dup-acks both mean loss; climbing while associated-but-slow is the fingerprint of a weak link — consistent with the 20–30% loss measured on wlan0 before power-save was disabled (the retransmit counts themselves were not recorded).
   - id: resets
     concept_tags: [C42]
     type: single

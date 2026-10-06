@@ -63,7 +63,8 @@ fixed number of fixed-size files and, once they are all full, overwrites the old
 therefore bounded by `file size × file count`, no matter how long the capture runs.
 
 Fancy's tap defaults to **10 files of about 10 MB each**, so roughly **100 MB** at most, in
-`~/labs/tshark` — it can never fill the SD card. The trade is history: the ring only holds the most
+`~/labs/tshark` — it can never fill the disk (root is on the 234 GB NVMe; the microSD is a removed
+fallback and is never written). The trade is history: the ring only holds the most
 recent ~100 MB, so on a busy link that may be only the last minute or two. Make the files bigger,
 or the filter narrower, when you need to keep more of the window around a rare event. The tap reads
 only the **newest** segment to build its summary, which keeps the cost on the Pi low even on a long
@@ -104,9 +105,11 @@ counts four signals:
   died, a firewall, a port with nothing listening) rather than at radio loss.
 
 Read them together. Retransmits and dup-acks that climb while the link is associated but slow are
-the fingerprint of **loss on a weak link** — exactly what was measured on Fancy's `wlan0` on a
+the fingerprint of **loss on a weak link** — the condition measured on Fancy's `wlan0` on a
 −71 dBm 2.4 GHz link (20–30% ping loss, tx rate collapsed to 5.5 Mbit/s), before Wi-Fi power-save
-was disabled (see `docs/logs/known-issues.md`). Resets without a climb in retransmits point the
+was disabled (see `docs/logs/known-issues.md`). The loss and tx-rate figures were measured then;
+the retransmit/dup-ack counts themselves predate this tap and were not recorded — they are what
+that loss would drive, not a logged number. Resets without a climb in retransmits point the
 other way, at an endpoint, not the air. **Zero of all three is the healthy baseline** — a clean
 capture is supposed to be boring.
 

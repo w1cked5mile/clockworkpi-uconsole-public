@@ -15,4 +15,7 @@ signals, and reading them together tells a weak link apart from a broken route o
 
 The one number to remember: **zero of all three TCP signals is the healthy baseline.** A clean
 capture is supposed to be boring. You are hunting for the counts that *climb* while the link is
-associated but slow — that climb is the fingerprint of loss on a marginal link.
+associated but slow — that climb is the fingerprint of loss on a marginal link. On Fancy today,
+after `wlan0`'s power-save was disabled (2026-09-30), the clean baseline is the normal result; the
+climb is the historical fault that mitigation cleared, kept here as the pattern to recognise if it
+comes back.

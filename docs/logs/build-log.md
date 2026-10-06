@@ -2,6 +2,31 @@
 
 Dated journal of what was done. Newest entries at the top. Link photos in [`../../images/`](../../images/).
 
+## 2026-10-06 — webdash: passive packet-capture tap (tshark) + M14 curriculum
+
+- **What:** Installed Wireshark/tshark 4.4.19 on Fancy and added a passive, receive-only
+  packet-capture tap to the webdash for the hang/dropout investigation: a localhost host bridge
+  (`tshark-bridge.py`, 127.0.0.1:8768) driving a bounded `dumpcap` ring buffer through a
+  scoped-sudoers root wrapper (`tshark-capture.sh`), an address-free collector + System-view tile,
+  and curriculum module **M14** ("Reading a packet capture") + **LAB-23**, checked against live
+  `tshark` data. Deployed to the live container (`docker compose up -d --build`) and
+  installed/enabled `tshark-bridge.service`.
+- **Result:** Verified end-to-end on `wlan0` — capture runs, `segment_packets` rises, findings
+  (TCP retransmit/dup-ack/reset, ICMP-unreachable) and protocol mix populate, the final summary
+  lands on "done", and the pcap is user-owned in `~/labs/tshark`. Two bring-up bugs found and
+  fixed: dumpcap exited immediately because it drops `CAP_DAC_OVERRIDE` and so, as root, could not
+  write into the mode-700 home — it now runs **as the user** via `runuser`, which requires the
+  capture user in the `wireshark` group (added this session); and the summary read back zero
+  because a heredoc fed the program on python's stdin, starving it of tshark's output — the
+  aggregator moved to its own file, plus a final-summary pass after the capture loop. Captures land
+  on the 234 GB NVMe, never the microSD. The senior-rf-engineer review was applied to the M14
+  wording (SD→NVMe, the retransmit-counts-not-measured caveat, the step-1-only-proves-reachable
+  note, and the post-power-save clean-baseline framing).
+- **Photos:** none this session.
+- **Next:** Point the tap at the open hang / under-voltage watchdog hypothesis; a short
+  `ss`/`conntrack`/`iw-link` collector would complement it. PRs for `feat/webdash-tshark-tap` are
+  pushed but not opened.
+
 ## 2026-10-04 — GNSS: first fix recorded as a finding
 
 - Captured a GNSS fix over gpsd 3.25 (`/dev/serial0`, NMEA 0183 @ 9600 bps) and logged it as
