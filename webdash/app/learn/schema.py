@@ -28,6 +28,12 @@ LIVE_PATHS = frozenset(
         "kismet.state", "kismet.devices",
         "services.state",
         "net.state", "net.monitor_ifaces",
+        # Passive packet-capture tap (collectors/tshark.py, payload key "tshark"). Address-free:
+        # counts, rates, protocol names and TCP/ICMP anomaly counts only — never a MAC or IP.
+        "tshark.state", "tshark.stage", "tshark.message", "tshark.iface", "tshark.filter",
+        "tshark.running", "tshark.segment_packets", "tshark.segment_kb",
+        "tshark.findings.tcp_retransmit", "tshark.findings.tcp_dup_ack",
+        "tshark.findings.tcp_reset", "tshark.findings.icmp_unreachable",
     ]
     + [f"aiov2.rails.{r}.on" for r in _RAILS]
     + [f"services.{s}.{f}" for s in _SERVICES for f in ("active", "sub", "n_restarts", "crash_looping")]

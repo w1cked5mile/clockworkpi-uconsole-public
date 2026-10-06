@@ -158,6 +158,21 @@ a.strip-item:hover, .brand:hover { color: var(--fg); }
   border: 1px solid var(--accent); border-radius: 4px; padding: 8px 10px; background: rgba(34,197,94,0.06);
 }
 
+/* Passive packet-capture tile (System view). */
+.tshark-ctl { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; margin: 10px 0; }
+.tshark-ctl label { display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; color: var(--dim); }
+.tshark-ctl select, .tshark-ctl input {
+  font: inherit; font-size: 0.85rem; color: inherit; background: var(--panel-2);
+  border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px;
+}
+.tshark-ctl input[type="number"] { width: 7em; }
+.tshark-status { font-size: 0.8rem; color: var(--dim); min-height: 1.2em; margin: 4px 0 8px; }
+.tshark-protos { font-size: 0.78rem; color: var(--dim); margin-top: 8px; line-height: 1.5; }
+.tshark-protos:empty { display: none; }
+.tshark-pcaps { margin-top: 10px; font-size: 0.8rem; }
+.tshark-pcaps summary { color: var(--dim); cursor: pointer; }
+.tshark-pcaps #tshark-pcaps { white-space: pre-line; margin-top: 6px; font-family: ui-monospace, monospace; font-size: 0.78rem; }
+
 /* Above mobile (>640px): System and Power share the top row at half width each, and the four rail
    stations sit below at a quarter of the page width each. Only phones (≤640px) stack single-column.
    On the uConsole (short landscape) the grid is also sized to the viewport so all six tiles fit with
