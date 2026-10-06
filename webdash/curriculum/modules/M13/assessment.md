@@ -71,7 +71,7 @@ items:
       - "The CM4 is CPU-only and slow; a GPU host makes a large wordlist practical, so Fancy captures and offloads"
       - "The capture file can only be read on Windows"
     answer: 1
-    explanation: Fancy captures fine but cracks slowly on its CPU. The handshake is small, so you transfer it to a beefier host (gpu-host or backup-host) for the GPU run.
+    explanation: Fancy captures fine but cracks slowly on its CPU. The handshake is small, so you transfer it to a beefier host (gpu-host or homeserver) for the GPU run.
   - id: wpa3
     concept_tags: [C40]
     type: single

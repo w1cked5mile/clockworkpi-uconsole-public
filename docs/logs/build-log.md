@@ -447,7 +447,7 @@ Dated journal of what was done. Newest entries at the top. Link photos in [`../.
   by the workdir step; skipping it fails with a clear `Could not create "…csv"`).
 - **Photos:** none this session.
 - **Next:** optional — validate the GPU crack-offload path (runbook 5b) with hashcat against the
-  kept capture on gpu-host/backup-host (hashcat setup is out of this repo's scope).
+  kept capture on gpu-host/homeserver (hashcat setup is out of this repo's scope).
 
 ## 2026-09-25 — Correction: why onboard Ethernet didn't link until 2026-09-23
 
@@ -811,10 +811,10 @@ Dated journal of what was done. Newest entries at the top. Link photos in [`../.
 - **Next:** before the Meshnology LiPo goes in, solder `JP1` closed and meter the JST polarity at
   both ends. The 18650 weigh/voltage checks are still open.
 
-## 2026-09-23 — Baseline backup to `backup-host`
+## 2026-09-23 — Baseline backup to `homeserver`
 
 - **What:** File-level baseline backup of the NVMe install, streamed over SSH (tailnet) to
-  `backup-host:~/backups/fancy/2026-09-23-baseline/`, 02:49–03:41 UTC. File-level rather than a raw
+  `homeserver:~/backups/fancy/2026-09-23-baseline/`, 02:49–03:41 UTC. File-level rather than a raw
   `dd` because the system was live and the reused drive's free space holds old data.
 - **Contents:** `nvme0n1.sfdisk` (partition table, `sfdisk -d`), `blkid.txt` (PARTUUIDs
   `e10af45d-01/-02`), `boot-firmware.tar.zst` (31 MiB), `rootfs.tar.zst` (3.3 GiB, 213 338
@@ -834,7 +834,7 @@ Dated journal of what was done. Newest entries at the top. Link photos in [`../.
 
 - **Findings:** `tar` exited 1 on `./sys: file changed as we read it` (the mountpoint, harmless),
   which stopped the script before its checksum step; checksums were run by hand. The tailnet path
-  to `backup-host` is relayed — `tailscale ping backup-host` gets no reply — so throughput was ~1.1 MB/s
+  to `homeserver` is relayed — `tailscale ping homeserver` gets no reply — so throughput was ~1.1 MB/s
   average. A LAN path would be much faster for the next backup.
 - **Restore outline:** `sfdisk /dev/nvme0n1 < nvme0n1.sfdisk`, `mkfs.vfat` p1 and `mkfs.ext4` p2,
   extract each archive with `tar --numeric-owner --xattrs --xattrs-include='*' --acls -xpf`. The

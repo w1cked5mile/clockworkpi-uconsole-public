@@ -159,7 +159,7 @@
       **Deliberately not done yet.** Relevant to NVMe boot reliability, so worth doing before or
       alongside the NVMe board bring-up once #11953 arrives.
 - [x] Back up the baseline image. Done 2026-09-23: file-level backup (partition table, boot and root
-      tarballs) on `backup-host:~/backups/fancy/2026-09-23-baseline/`, integrity-tested, checksums in the
+      tarballs) on `homeserver:~/backups/fancy/2026-09-23-baseline/`, integrity-tested, checksums in the
       build log.
 - [ ] Commit configs to `configs/`; note firmware versions.
 - [x] Decide LICENSE. Done 2026-09-24: docs and media CC BY 4.0, code and configs MIT, Kismet-derived

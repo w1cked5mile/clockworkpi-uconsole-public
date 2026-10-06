@@ -198,7 +198,7 @@ All notable changes to this build and its docs. Format loosely follows Keep a Ch
 - **Checklist 1.7 passes, 2026-09-23.** `JP1` is open (correct for the 18650s fitted) and the
   reverse-polarity LED is unlit.
 - **Baseline backup taken, 2026-09-23.** A file-level backup (partition table, boot and root
-  archives, 3.3 GiB) is on `backup-host`, integrity-tested with checksums in the build log. It has not
+  archives, 3.3 GiB) is on `homeserver`, integrity-tested with checksums in the build log. It has not
   been test-restored.
 - **Power budget re-sized to the 37 Wh pack, 2026-09-23.** Runtimes now start from the measured
   ~5.0 W idle; terminal work is ~6 h, not ~9 h. Boot-log warnings triaged: the SPI0 pinctrl warning

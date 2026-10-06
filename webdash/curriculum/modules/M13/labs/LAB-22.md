@@ -50,7 +50,7 @@ steps:
     text: "wlan0 is still in managed mode — Fancy's network link was never part of this."
     check: {type: status, path: net.wlan0.mode, op: eq, value: managed}
   - id: data-off
-    text: "Move the capture, and anything you recovered, off Fancy to storage you control (e.g. scp to gpu-host or backup-host over the tailnet for the GPU crack), then delete the local copies: rm -f ~/labs/wpa/handshake-*. Attest none of it went into the repo."
+    text: "Move the capture, and anything you recovered, off Fancy to storage you control (e.g. scp to gpu-host or homeserver over the tailnet for the GPU crack), then delete the local copies: rm -f ~/labs/wpa/handshake-*. Attest none of it went into the repo."
     check: {type: attest, prompt: "I moved the capture and any recovered passphrase off Fancy, deleted the local copies, and committed none of it."}
   - id: local-clean
     text: "No capture is left in the working directory."

@@ -126,7 +126,7 @@ verify before relying on it*).
 
 **Fancy captures; a beefier box cracks.** The CM4 is CPU-only and slow (see *Realistic
 expectations*), so treat on-device cracking as a quick sanity check and offload any real run to a
-GPU host on the tailnet — `gpu-host` or `backup-host`. The handshake is small; the transfer is
+GPU host on the tailnet — `gpu-host` or `homeserver`. The handshake is small; the transfer is
 trivial.
 
 ### 5a. On-device quick check — aircrack-ng (verified path on this build)
@@ -150,7 +150,7 @@ crack on the target host, not here.
 
 ```bash
 # from Fancy: send the raw capture over the tailnet (pick your host)
-scp handshake-01.cap user@gpu-host:~/wpa/      # or: ...@backup-host:~/wpa/
+scp handshake-01.cap user@gpu-host:~/wpa/      # or: ...@homeserver:~/wpa/
 ```
 
 Then on that host (commands are for the host, *unverified from here* — adjust to its OS/paths):
@@ -209,7 +209,7 @@ the target network's real frames and, on success, its actual password.
 
 ```bash
 # example: copy to a controlled tailnet host, then remove local copies
-rsync -a ~/labs/wpa/ user@backup-host:~/engagements/<name>/wpa/ && rm -f ~/labs/wpa/handshake-*
+rsync -a ~/labs/wpa/ user@homeserver:~/engagements/<name>/wpa/ && rm -f ~/labs/wpa/handshake-*
 ```
 
 Never commit them. If you took any notes worth keeping, a **finding** under

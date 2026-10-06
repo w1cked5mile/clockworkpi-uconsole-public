@@ -62,7 +62,7 @@ audit of your own passphrase strength, run the way an attacker would, on gear yo
 **Fancy captures; a bigger machine cracks.** The handshake file is tiny, but the crack is a
 deliberately slow PBKDF2 grind and the CM4 has only its CPU — on the order of a few hundred to
 low-thousands of candidates a second (measure it with `aircrack-ng -S`). So Fancy is capture-only:
-you copy the capture to a GPU host on the tailnet — `gpu-host` or `backup-host` — and run the
+you copy the capture to a GPU host on the tailnet — `gpu-host` or `homeserver` — and run the
 wordlist there. And because a capture holds a real network's frames, and on success its real
 passphrase, **it never goes in the repo**: it lives in `~/labs/wpa/`, moves to storage you control,
 and the finding you file records only the result in words.
