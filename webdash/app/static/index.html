@@ -328,6 +328,31 @@
         <div class="row"><span class="k">Avg temp (1h)</span><span class="v" id="sys-temp-avg">—</span></div>
         <div class="row"><span class="k">Uptime</span><span class="v" id="sys-uptime">—</span></div>
       </div>
+
+      <div class="panel tshark-cap">
+        <h2 class="panel-title">Packet capture — passive troubleshooting</h2>
+        <p class="hint">Captures Fancy's own traffic to a bounded ring buffer (~100&nbsp;MB cap in
+          <code>~/labs/tshark</code>) to help diagnose hangs and dropouts. It only listens — there is no
+          transmit path. The dashboard shows counts only; the saved <code>.pcapng</code> (which does contain
+          addresses) stays on the device for a Wireshark deep-dive.</p>
+        <div class="tshark-ctl">
+          <label>Interface<select id="tshark-iface"><option value="">—</option></select></label>
+          <label>Capture filter <span class="dim">(optional BPF)</span>
+            <input type="text" id="tshark-filter" placeholder="e.g. host 192.0.2.1 or port 53" maxlength="200"></label>
+          <label>Duration <span class="dim">(s, 0 = until stopped)</span>
+            <input type="number" id="tshark-duration" min="0" max="86400" step="30" value="120"></label>
+          <button type="button" class="btn" id="tshark-start" disabled>Start capture</button>
+          <button type="button" class="btn danger" id="tshark-cancel" style="display:none">Stop</button>
+          <span class="ctl-error" id="tshark-error" role="alert"></span>
+        </div>
+        <div class="tshark-status" id="tshark-status"></div>
+        <div id="tshark-body">—</div>
+        <div class="tshark-protos" id="tshark-protos"></div>
+        <details class="tshark-pcaps">
+          <summary>Saved captures on device</summary>
+          <div id="tshark-pcaps" class="dim">—</div>
+        </details>
+      </div>
     </section>
 
     <!-- Learning platform ("the Chart Table"). Rendered by js/learn.js from /api/learn/*. -->

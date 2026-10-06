@@ -1,0 +1,6 @@
+# Scoped sudoers for the webdash tshark capture bridge (passive troubleshooting tap).
+# Lets the tshark-bridge (running as wicked5mile) run ONLY the root-owned capture wrapper with no
+# password. The wrapper itself re-validates the interface and refuses anything but a bounded,
+# receive-only ring-buffer capture — no transmit path exists. Install to
+# /etc/sudoers.d/webdash-tshark-capture with mode 0440; validate with `visudo -cf`.
+wicked5mile ALL=(root) NOPASSWD: /usr/local/sbin/uconsole-tshark-capture.sh

@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from . import auth, proxy
-from .collectors import adsb, aiov2, gps, kismet, mesh, net, services, system
+from .collectors import adsb, aiov2, gps, kismet, mesh, net, services, system, tshark
 from .sdr import hunt as sdr_hunt
 from .sdr import listen as sdr_listen
 from .wpa import allowlist as wpa_allowlist
@@ -117,9 +117,9 @@ async def current_status() -> dict:
 
 
 async def build_status() -> dict:
-    aiov2_r, kismet_r, gps_r, adsb_r, mesh_r, services_r = await asyncio.gather(
+    aiov2_r, kismet_r, gps_r, adsb_r, mesh_r, services_r, tshark_r = await asyncio.gather(
         aiov2.collect(), kismet.collect(), gps.collect(), adsb.collect(), mesh.collect(),
-        services.collect(),
+        services.collect(), tshark.collect(),
     )
     return {
         "system": system.collect(),
@@ -130,6 +130,7 @@ async def build_status() -> dict:
         "mesh": mesh_r,
         "services": services_r,
         "net": net.collect(),
+        "tshark": tshark_r,
         "generated_at": time.time(),
     }
 
@@ -312,6 +313,32 @@ async def api_sdr_listen(mode: str = "am", freq: int = 0, scan: str = "", squelc
     which pauses on traffic and resumes. Same-origin session cookie authenticates it; see
     software/sdr-stack.md."""
     return await sdr_listen.stream(mode, freq, scan, squelch)
+
+
+# --- Passive packet capture (troubleshooting tap, receive-only) ----------------------------
+# A bounded dumpcap ring buffer on a chosen interface, summarized address-free for the dash. For
+# the hang/dropout investigation; no transmit path. The host bridge re-validates the interface and
+# clamps the ring/duration limits. Same auth gate as the other write paths.
+class TsharkCaptureRequest(BaseModel):
+    iface: str = Field(min_length=1, max_length=15)
+    filter: str = Field(default="", max_length=200)
+    ringsize: int | None = None          # KB per ring file
+    ringfiles: int | None = None         # ring files kept
+    duration: int | None = None          # overall cap in seconds, 0 = until cancelled
+    stats_interval: int | None = None
+
+
+@app.post("/api/tshark/capture", dependencies=[Depends(auth.require_session)])
+async def api_tshark_capture(body: TsharkCaptureRequest):
+    result = await tshark.start(body.model_dump(exclude_none=True))
+    return JSONResponse(result, status_code=200 if result.get("ok")
+                        else 409 if "already" in result.get("error", "") else 400)
+
+
+@app.post("/api/tshark/capture/cancel", dependencies=[Depends(auth.require_session)])
+async def api_tshark_cancel():
+    result = await tshark.cancel()
+    return JSONResponse(result, status_code=200 if result.get("ok") else 400)
 
 
 # --- WPA audit (authorized equipment only) -------------------------------------------------

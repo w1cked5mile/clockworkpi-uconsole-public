@@ -128,6 +128,8 @@ Dependencies:
 | C38 | Licensing | [`licensing-path-us.md`](../../knowledge/ham-radio/learned/licensing-path-us.md) | Tech / General / Extra, VEC exams; a licence adds capability, it doesn't legalise Fancy |
 | C39 | Authorized active testing & authorization discipline | [`CLAUDE.md`](../../CLAUDE.md), [`software/aircrack-ng.md`](../../software/aircrack-ng.md), [`us-spectrum-and-legal.md`](../../knowledge/rf-fundamentals/learned/us-spectrum-and-legal.md) | Own-network-or-written-authorization rule; CVP lifts the default dual-use block but authorizes no specific target; C2 / mass-exfil / ransomware stay prohibited; approval ≠ permission |
 | C40 | WPA2 four-way handshake & offline audit | [`wifi-wpa2-handshake-audit.md`](../runbooks/wifi-wpa2-handshake-audit.md), [`software/aircrack-ng.md`](../../software/aircrack-ng.md) | EAPOL four-way handshake, deauth (802.11w/PMF caveat), PMKID, wordlist crack; WPA3/SAE not crackable this way; Fancy is capture-only, cracking offloads to a GPU host |
+| C41 | Passive packet capture | [`packet-capture.md`](platform-basics/packet-capture.md), [`tshark-capture.sh`](../../webdash/host-helpers/tshark-capture.sh), [`collectors/tshark.py`](../../webdash/app/collectors/tshark.py) | Receive-only tap on Fancy's own interfaces; capture vs display filter; ring buffer bound = file size × count; address-free summary, addresses stay in the on-disk pcap |
+| C42 | Reading link anomalies | [`packet-capture.md`](platform-basics/packet-capture.md), [`known-issues.md`](../logs/known-issues.md) | Protocol mix as shape; TCP retransmit / dup-ack = loss (weak link), reset = endpoint/filter, ICMP unreachable = routing; zero of the three TCP signals is the healthy baseline |
 
 ### 1.3 Dependency graph
 
@@ -147,6 +149,7 @@ C31: C01, C02       C32: C31, C24, C09  C33: C32
 C34: C20, C23, C01  C35: C34
 C36: C01            C37: C36, C23, C24(s)                    C38: C36, C01
 C39: C01, C31       C40: C31, C39
+C41: C09, C10       C42: C41
 ```
 
 ```mermaid

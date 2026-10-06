@@ -12,6 +12,7 @@ of the repo uses without explaining. Written for the learning platform's gap mod
 | [`drivers-and-udev.md`](drivers-and-udev.md) | Kernel drivers, device nodes, udev rules, the DVB blacklist | M1b |
 | [`device-tree.md`](device-tree.md) | Device tree, overlays, `config.txt`, the serial console | M1b |
 | [`docker.md`](docker.md) | Images, containers, bind mounts, host networking, uid 1000 | M1b |
+| [`packet-capture.md`](packet-capture.md) | The passive capture tap: capture vs display filters, the ring buffer, protocol mix, TCP/ICMP anomaly counts | M14 |
 | [`totp.md`](totp.md) | How the login codes work, and why the clock matters | M0 |
 
 Power for learners (P8) is a section of [`../power-budget.md`](../power-budget.md#reading-the-power-numbers).

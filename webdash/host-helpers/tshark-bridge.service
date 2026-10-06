@@ -1,0 +1,27 @@
+# Localhost passive-capture control bridge for the webdash (troubleshooting tap).
+#
+# Like wpa-audit-bridge.service, this is deliberately NOT NoNewPrivileges: it must sudo the root
+# capture wrapper (scoped in /etc/sudoers.d/webdash-tshark-capture). It still binds 127.0.0.1 only
+# and runs as the unprivileged user; the only thing it can sudo is the one capture wrapper, which
+# itself is receive-only (dumpcap ring buffer — no transmit path).
+#
+# Install (one-time, as wicked5mile):
+#   sudo install -m0755 webdash/host-helpers/tshark-capture.sh /usr/local/sbin/uconsole-tshark-capture.sh
+#   sudo install -m0440 webdash/host-helpers/tshark-capture.sudoers /etc/sudoers.d/webdash-tshark-capture
+#   sudo visudo -cf /etc/sudoers.d/webdash-tshark-capture      # validate
+#   sudo cp webdash/host-helpers/tshark-bridge.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now tshark-bridge.service
+
+[Unit]
+Description=Passive packet-capture bridge for webdash (localhost only, receive-only)
+After=network.target
+
+[Service]
+Type=simple
+User=wicked5mile
+ExecStart=/usr/bin/python3 /home/user/clockworkpi-uconsole/webdash/host-helpers/tshark-bridge.py
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
