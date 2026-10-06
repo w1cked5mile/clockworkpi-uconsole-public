@@ -33,7 +33,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-DUMP_PID=""; CAP_PREFIX=""
+DUMP_PID=""; CAP_PREFIX=""; CAP_USER=""
 
 emit() {  # emit <stage> <message> [json-fragment]
   local stage="$1" msg="$2" frag="${3:-}"
@@ -53,7 +53,11 @@ PY
 }
 
 cancelled() { [ -n "$CANCELFILE" ] && [ -f "$CANCELFILE" ]; }
-cleanup() { [ -n "$DUMP_PID" ] && kill "$DUMP_PID" 2>/dev/null; }
+cleanup() {
+  [ -n "$DUMP_PID" ] && kill "$DUMP_PID" 2>/dev/null
+  # runuser does not forward signals to its child, so also stop dumpcap by its unique output path.
+  [ -n "$CAP_PREFIX" ] && pkill -f "dumpcap.*$CAP_PREFIX" 2>/dev/null
+}
 trap cleanup EXIT
 fail() { emit "error" "$1"; exit 1; }
 
@@ -76,33 +80,43 @@ cancelled && { emit "cancelled" "cancelled before start"; exit 0; }
 mkdir -p "$OUTDIR"
 TS="$(date +%Y%m%d-%H%M%S)"
 CAP_PREFIX="$OUTDIR/fancy-$IFACE-$TS"
+# dumpcap drops CAP_DAC_OVERRIDE once it has the capture socket, so as root it cannot traverse a
+# mode-700 home to write the pcap. Run it instead AS the directory's owner, who (via the wireshark
+# group) has dumpcap's capture capability and owns OUTDIR — so the pcaps are user-owned and
+# readable for a Wireshark deep-dive. Fall back to the sudo invoker, then root.
+CAP_USER="$(stat -c %U "$OUTDIR" 2>/dev/null)"
+[ -n "$CAP_USER" ] && [ "$CAP_USER" != "UNKNOWN" ] || CAP_USER="${SUDO_USER:-root}"
 DUMP=(dumpcap -i "$IFACE" -q -w "$CAP_PREFIX.pcapng"
       -b "filesize:$RINGSIZE" -b "files:$RINGFILES")
 [ -n "$FILTER" ] && DUMP+=(-f "$FILTER")
+DERR="$OUTDIR/.dumpcap-$TS.err"
 emit "capturing" "ring buffer on $IFACE (${RINGSIZE}KB x $RINGFILES)"
-"${DUMP[@]}" >/dev/null 2>&1 &
+if [ "$CAP_USER" != "root" ] && command -v runuser >/dev/null 2>&1; then
+  runuser -u "$CAP_USER" -- "${DUMP[@]}" >/dev/null 2>"$DERR" &
+else
+  "${DUMP[@]}" >/dev/null 2>"$DERR" &
+fi
 DUMP_PID=$!
 sleep 2
-kill -0 "$DUMP_PID" 2>/dev/null || fail "dumpcap exited immediately (interface down or in use?)"
+# dumpcap keeps running under a ring buffer, so a live PID means it opened the device and the file.
+if ! pgrep -f "dumpcap.*$CAP_PREFIX" >/dev/null 2>&1 && ! kill -0 "$DUMP_PID" 2>/dev/null; then
+  fail "dumpcap failed to start: $(tr -s ' \n' ' ' < "$DERR" 2>/dev/null | tail -c 200)"
+fi
 
 # 3) Periodically read the NEWEST ring segment back and compute address-free aggregates. Reading
 #    only the current segment bounds the cost (each segment is <= RINGSIZE KB), so this stays cheap
 #    even on a long capture on the Pi.
 newest_seg() { ls -1t "$OUTDIR/fancy-$IFACE-$TS"_*.pcapng 2>/dev/null | head -1; }
 
-summarize() {  # -> JSON fragment on stdout, address-free
-  local seg; seg="$(newest_seg)"
-  [ -n "$seg" ] && [ -r "$seg" ] || { echo ""; return; }
-  # One pass over the segment; aggregate in python. Fields chosen for the dropout hunt: protocol
-  # mix, TCP retransmits / dup-acks / resets, ICMP unreachables. No endpoint fields are requested.
-  tshark -r "$seg" -T fields -E separator='|' \
-    -e _ws.col.Protocol \
-    -e tcp.analysis.retransmission \
-    -e tcp.analysis.duplicate_ack \
-    -e tcp.flags.reset \
-    -e icmp.type 2>/dev/null \
-  | python3 - "$seg" <<'PY'
-import os, sys, collections
+# The aggregator lives in its own file, not a heredoc on python's stdin: summarize pipes tshark's
+# output INTO python, so python's stdin must be that pipe, and the program must come from a file
+# (a `python3 - <<PY` heredoc would instead feed the program on stdin and leave tshark's output
+# unread — silently zeroing every count).
+PARSER="$OUTDIR/.tshark-summarize.py"
+write_parser() {
+  mkdir -p "$OUTDIR"
+  cat >"$PARSER" <<'PY'
+import os, sys, collections, json
 seg = sys.argv[1]
 protos = collections.Counter()
 retx = dupack = reset = unreach = total = 0
@@ -119,7 +133,6 @@ for line in sys.stdin:
         reset += 1
     if icmp == "3":
         unreach += 1
-import json
 seg_kb = round(os.path.getsize(seg) / 1024, 1) if os.path.exists(seg) else None
 print(json.dumps({
     "segment_packets": total,
@@ -131,11 +144,36 @@ print(json.dumps({
 PY
 }
 
+summarize() {  # -> JSON fragment on stdout, address-free
+  local seg; seg="$(newest_seg)"
+  [ -n "$seg" ] && [ -r "$seg" ] || { echo ""; return; }
+  [ -f "$PARSER" ] || write_parser
+  # One pass over the segment; aggregate in python. Fields chosen for the dropout hunt: protocol
+  # mix, TCP retransmits / dup-acks / resets, ICMP unreachables. No endpoint fields are requested.
+  tshark -r "$seg" -T fields -E separator='|' \
+    -e _ws.col.Protocol \
+    -e tcp.analysis.retransmission \
+    -e tcp.analysis.duplicate_ack \
+    -e tcp.flags.reset \
+    -e icmp.type 2>/dev/null \
+  | python3 "$PARSER" "$seg"
+}
+
+# Stop dumpcap, let the newest segment finalize, then emit a FINAL summary — so a finished or
+# cancelled capture reports its true totals instead of leaving the last mid-write (often zero on a
+# quiet link) numbers on screen.
+finish() {  # finish <stage> <message>
+  cleanup
+  sleep 1
+  emit "$1" "$2" "$(summarize)"
+  exit 0
+}
+
 START="$(date +%s)"
 while kill -0 "$DUMP_PID" 2>/dev/null; do
-  cancelled && { emit "cancelled" "cancelled during capture"; exit 0; }
+  cancelled && finish "cancelled" "cancelled during capture"
   if [ "$DURATION" -gt 0 ] && [ $(( $(date +%s) - START )) -ge "$DURATION" ]; then
-    emit "done" "capture duration reached"; exit 0
+    finish "done" "capture complete (${DURATION}s)"
   fi
   FRAG="$(summarize)"
   elapsed=$(( $(date +%s) - START ))
@@ -143,5 +181,4 @@ while kill -0 "$DUMP_PID" 2>/dev/null; do
   sleep "$STATS_INTERVAL"
 done
 
-emit "done" "capture stopped"
-exit 0
+finish "done" "capture stopped (dumpcap exited)"

@@ -9,6 +9,9 @@
 #   sudo install -m0755 webdash/host-helpers/tshark-capture.sh /usr/local/sbin/uconsole-tshark-capture.sh
 #   sudo install -m0440 webdash/host-helpers/tshark-capture.sudoers /etc/sudoers.d/webdash-tshark-capture
 #   sudo visudo -cf /etc/sudoers.d/webdash-tshark-capture      # validate
+#   sudo usermod -aG wireshark <user>        # REQUIRED: dumpcap drops CAP_DAC_OVERRIDE, so it must
+#                                            # capture AS the user to write user-owned pcaps into a
+#                                            # mode-700 home; the wrapper runs it via runuser.
 #   sudo cp webdash/host-helpers/tshark-bridge.service /etc/systemd/system/
 #   sudo systemctl daemon-reload && sudo systemctl enable --now tshark-bridge.service
 
