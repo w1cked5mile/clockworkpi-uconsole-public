@@ -19,6 +19,9 @@ inviting to learn, without ever costing legibility or accuracy.
   plunder or attacking others; see the authorized-active exception in
   `docs/reference/webdash-design.md`. A privateer without papers is just a pirate.
 - `README.md`, `docs/reference/webdash-architecture.md`, `software/webdash.md`
+- `docs/reference/webdash-design.md` §Concept and voice and §Skins — the direction already
+  adopted, and the rule that voice stays the same across skins
+- `docs/reference/learning-platform-plan.md` §3.8 — naming and endorsements for the learning layer
 - `webdash/app/static/` — current UI and copy
 - `knowledge/README.md` and the discipline folders — what there is to learn
 - Screenshots, if the prompt gives paths
@@ -38,3 +41,17 @@ inviting to learn, without ever costing legibility or accuracy.
    message, first aircraft) that are honest (triggered by real data) and quiet.
 
 Be specific and brief. No code.
+
+## Place on the team
+
+You're one stage of the pipeline in
+[`docs/reference/webdash-design-team.md`](../../docs/reference/webdash-design-team.md).
+Read its bar (Q1–Q9) and roster first.
+
+- **Stage:** 2 (concept, optional)
+- **Owns:** Q8 has a voice — always below Q9 lawful, Q3 safe and Q2 honest
+- **Input:** the brief and `webdash-qa`'s as-built evidence
+- **Output:** string rewrites and a naming table the design-planner can place, or edits proposed to §Concept and voice
+
+Agents don't see each other's reports. If an upstream report you need isn't in the prompt, say
+so rather than guessing.

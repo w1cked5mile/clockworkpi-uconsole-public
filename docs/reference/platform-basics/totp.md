@@ -16,8 +16,8 @@ differ by at least 30 seconds (up to nearly 60, depending on where in the step t
 
 ## Why the clock matters here
 
-Fancy has no RTC backup cell. After an offline cold boot the system clock can be far off, and
-every code will be rejected until the clock is right — NTP when online, or GPS time if it is fed
+Fancy had no RTC backup cell until 2026-10-10 (now fitted). Without one, after an offline cold
+boot the system clock can be far off, and every code will be rejected until the clock is right — NTP when online, or GPS time if it is fed
 to chrony (*unverified*). See
 [`../../../knowledge/rf-fundamentals/learned/gnss-basics.md`](../../../knowledge/rf-fundamentals/learned/gnss-basics.md#gnss-time-the-rtc-and-ntp).
 

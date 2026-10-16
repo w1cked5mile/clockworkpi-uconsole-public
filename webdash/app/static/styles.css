@@ -6,7 +6,8 @@
   --dim: #7fa87f;
   --ok: #4ade80;
   --warn: #facc15;
-  --off: #556655;
+  --off: #5c725c;  /* switch track: ≥ 3:1 on --panel for a UI component */
+  --edge: #5c725c; /* form-control borders: ≥ 3:1, since a control's fill ≈ the panel */
   --err: #f87171;
   --accent: #22c55e;
   --idle: #38bdf8;
@@ -38,10 +39,12 @@ body {
   display: flex; align-items: center; gap: 14px;
   height: var(--strip-h); padding: 0 16px; margin: 0 -16px 12px;
   background: var(--bg); border-bottom: 1px solid var(--line);
-  font-size: 0.8rem; white-space: nowrap;
+  font-size: 0.8rem; white-space: nowrap; overflow-x: auto;
 }
 .brand { color: var(--fg); font-weight: bold; letter-spacing: 0.08em; text-decoration: none; }
 .strip-item { color: var(--dim); }
+.strip-item.low { color: var(--warn); }          /* pack voltage ≤ 3.60 V on battery */
+.strip-item.crit { color: var(--err); font-weight: bold; }  /* ≤ 3.55 V — shut down */
 a.strip-item { text-decoration: none; }
 a.strip-item:hover, .brand:hover { color: var(--fg); }
 .rail-chips { display: flex; gap: 10px; }
@@ -56,9 +59,9 @@ a.strip-item:hover, .brand:hover { color: var(--fg); }
 .tagline { color: var(--dim); font-size: 0.75rem; margin: 16px 0 0; font-style: italic; }
 
 /* ---- Overview tiles ---- */
-.tiles { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.tiles { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .tile {
-  display: flex; flex-direction: column; min-height: 0;
+  display: flex; flex-direction: column; min-height: 0; min-width: 0;
   background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px;
 }
 .tile-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
@@ -75,6 +78,29 @@ a.strip-item:hover, .brand:hover { color: var(--fg); }
 .facts { flex: 1; min-height: 0; }
 .facts .row { padding: 2px 0; font-size: 0.8rem; gap: 12px; }
 .facts .row .v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* Sparklines (spark.js). One series each, so no legend: the title or tile names it. The trace is
+   status-neutral (--dim); only the end dot on the voltage spark takes --warn/--err, on battery.
+   Tokens only, so both skins follow. See docs/reference/webdash-design.md §Sparklines. */
+.spark { margin: 2px 0 4px; min-width: 0; }
+.spark-svg { display: block; max-width: 100%; overflow: visible; touch-action: pan-y; }
+.spark-line { stroke: var(--dim); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.spark-ref { stroke: var(--warn); stroke-width: 1; stroke-dasharray: 3 3; }
+.spark-dot { fill: var(--fg); stroke: var(--panel); stroke-width: 2; }
+.spark-dot.low { fill: var(--warn); }
+.spark-dot.crit { fill: var(--err); }
+.spark-cross-line { stroke: var(--edge); stroke-width: 1; }
+.spark-cross-dot { fill: var(--fg); stroke: var(--panel); stroke-width: 2; }
+.spark-cap { color: var(--dim); font-size: 0.7rem; font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spark-title { color: var(--fg); font-size: 0.8rem; margin-bottom: 2px; }
+.spark-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 20px; margin: 12px 0 4px; }
+@media (forced-colors: active) {
+  .spark-line, .spark-cross-line { stroke: CanvasText; }
+  .spark-ref { stroke: Highlight; }
+  .spark-dot, .spark-cross-dot { fill: CanvasText; stroke: Canvas; }
+}
 .tile-foot, .panel-foot {
   display: flex; justify-content: space-between; align-items: center; gap: 8px;
   margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); font-size: 0.8rem;
@@ -97,15 +123,31 @@ a.strip-item:hover, .brand:hover { color: var(--fg); }
 .btn.danger { color: var(--err); border-color: var(--err); }
 .btn:disabled { opacity: 0.6; cursor: default; }
 
+/* SDR: one tuner line above three tabs (ADS-B / Hunt / Listen), then the tab's panel */
+.sdr-tuner-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 8px; }
+.sdr-tuner { margin: 0; font-size: 0.85rem; color: var(--fg); }
+.sdr-tabs, .wifi-tabs { display: flex; gap: 4px; }
+.sdr-tabs a, .wifi-tabs a {
+  padding: 6px 14px; font-size: 0.85rem; color: var(--dim); text-decoration: none;
+  border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0;
+}
+.sdr-tabs a:hover, .wifi-tabs a:hover { color: var(--fg); }
+.sdr-tabs a[aria-current="page"], .wifi-tabs a[aria-current="page"] {
+  color: var(--fg); font-weight: bold; background: var(--panel); border-color: var(--line);
+  position: relative; top: 1px;  /* sits on the panel's top border, so the open tab joins it */
+}
+.sdr-tabs + .panel, .wifi-tabs + .panel { border-top-left-radius: 0; }
+.hint.sdr-block { color: var(--warn); }  /* beats .hint, which comes later */
+.sdr-block:empty { display: none; }
+
 /* SDR broadcast/airband hunt */
-.panel.sdr-hunt { margin-top: 16px; }
 .panel-title { font-size: 0.95rem; margin: 0 0 8px; }
 .mono { font-family: ui-monospace, monospace; }
 .sdr-hunt-ctl { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 10px 0; }
 .sdr-hunt-ctl label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--dim); }
 .sdr-hunt-ctl select {
   font: inherit; font-size: 0.85rem; color: inherit; background: var(--panel-2);
-  border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px;
+  border: 1px solid var(--edge); border-radius: 4px; padding: 5px 8px;
 }
 .sdr-hunt-status { font-size: 0.8rem; color: var(--dim); }
 .sdr-hunt-status.ok { color: var(--accent); }
@@ -113,17 +155,22 @@ a.strip-item:hover, .brand:hover { color: var(--fg); }
 .sdr-list { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
 .sdr-list th { text-align: left; color: var(--dim); font-weight: normal; border-bottom: 1px solid var(--line); padding: 4px 8px; }
 .sdr-list td { padding: 5px 8px; border-bottom: 1px solid var(--line); }
-.sdr-listen { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
 .sdr-listen-ctl { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .sdr-listen-ctl label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--dim); }
 .sdr-listen-ctl select {
   font: inherit; font-size: 0.85rem; color: inherit; background: var(--panel-2);
-  border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px;
+  border: 1px solid var(--edge); border-radius: 4px; padding: 5px 8px;
 }
 .sdr-now { font-size: 0.8rem; color: var(--accent); }
+.sdr-spectrum { margin: 10px 0 0; }
+.sdr-spectrum canvas {
+  display: block; width: 100%; max-width: 600px; height: auto;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px;
+}
+.sdr-spectrum #sdr-waterfall { margin-top: 4px; }
+.sdr-spectrum figcaption { margin-top: 4px; }
 
 /* WPA audit (authorized equipment only) */
-.panel.wpa-audit { margin-top: 16px; }
 .warn {
   color: var(--err); font-size: 0.8rem; line-height: 1.4; margin: 0 0 12px;
   border: 1px solid var(--err); border-radius: 4px; padding: 8px 10px; background: rgba(248,113,113,0.06);
@@ -132,7 +179,7 @@ a.strip-item:hover, .brand:hover { color: var(--fg); }
 .wpa-add label { display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; color: var(--dim); }
 .wpa-add input {
   font: inherit; font-size: 0.85rem; color: inherit; background: var(--panel-2);
-  border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; min-width: 15ch;
+  border: 1px solid var(--edge); border-radius: 4px; padding: 5px 8px; min-width: 15ch;
 }
 .wpa-add input:invalid { border-color: var(--err); }
 .wpa-list { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
@@ -144,7 +191,7 @@ a.strip-item:hover, .brand:hover { color: var(--fg); }
 .wpa-cap-ctl label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--dim); }
 .wpa-cap-ctl select {
   font: inherit; font-size: 0.85rem; color: inherit; background: var(--panel-2);
-  border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px;
+  border: 1px solid var(--edge); border-radius: 4px; padding: 5px 8px;
 }
 .wpa-cap-status { font-size: 0.8rem; color: var(--dim); min-height: 1.2em; }
 .wpa-cap-status.ok { color: var(--accent); }
@@ -163,7 +210,7 @@ a.strip-item:hover, .brand:hover { color: var(--fg); }
 .tshark-ctl label { display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; color: var(--dim); }
 .tshark-ctl select, .tshark-ctl input {
   font: inherit; font-size: 0.85rem; color: inherit; background: var(--panel-2);
-  border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px;
+  border: 1px solid var(--edge); border-radius: 4px; padding: 5px 8px;
 }
 .tshark-ctl input[type="number"] { width: 7em; }
 .tshark-status { font-size: 0.8rem; color: var(--dim); min-height: 1.2em; margin: 4px 0 8px; }
@@ -178,14 +225,36 @@ a.strip-item:hover, .brand:hover { color: var(--fg); }
    On the uConsole (short landscape) the grid is also sized to the viewport so all six tiles fit with
    no scrolling (height block below). */
 @media (min-width: 641px) {
-  .tiles { grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+  .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
   .tiles > .tile:nth-child(-n+2) { grid-column: span 2; }
 }
 @media (min-width: 900px) and (max-height: 620px) {
   body { padding-bottom: 8px; }
   /* strip + its 12 px margin + body's 8 px bottom padding */
-  .tiles { height: calc(100dvh - var(--strip-h) - 20px); }
+  /* The overview is a column of the Bench row and the tiles, sized to the screen; the tiles take
+     whatever height the Bench row leaves, so it never pushes them off the bottom. */
+  .view[data-view="overview"]:not([hidden]) {
+    display: flex; flex-direction: column; height: calc(100dvh - var(--strip-h) - 20px);
+  }
+  .tiles { flex: 1; min-height: 0; }
   .tagline { display: none; }
+}
+
+/* ---- Bench tools row (overview): links to the tools that aren't stations ---- */
+.bench {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 0.8rem;
+}
+.bench-label { color: var(--dim); letter-spacing: 0.05em; }
+.bench-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; color: var(--fg);
+  text-decoration: none; background: var(--panel); border: 1px solid var(--edge); border-radius: 12px;
+}
+.bench-chip:hover { border-color: var(--accent); }
+.bench-state { color: var(--dim); }
+@media (max-width: 640px) {
+  /* a short full-width list, with 44 px touch targets */
+  .bench { display: grid; grid-template-columns: 1fr; gap: 6px; }
+  .bench-chip { min-height: 44px; border-radius: 6px; justify-content: space-between; padding: 0 12px; }
 }
 
 /* ---- Detail views ---- */
@@ -199,7 +268,7 @@ a.strip-item:hover, .brand:hover { color: var(--fg); }
 .view > .panel { max-width: 1100px; }
 .btn {
   font: inherit; font-size: 0.8rem; color: var(--accent); background: var(--panel-2);
-  border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; cursor: pointer;
+  border: 1px solid var(--edge); border-radius: 4px; padding: 5px 10px; cursor: pointer;
 }
 .cmd {
   background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px;
@@ -247,6 +316,11 @@ a.strip-item:hover, .brand:hover { color: var(--fg); }
 
 /* Panel status: colour + glyph + word (see setStatus in js/ui.js), never colour alone. */
 .status { font-size: 0.75rem; letter-spacing: 0.04em; text-transform: none; white-space: nowrap; }
+.status-label { font-size: 0.75rem; margin-right: -8px; }  /* names whose state a heading shows */
+/* A view's rail switch in its heading (survey, WPA audit), so it's on screen with the controls. */
+.view-head:has(.view-rail) { max-width: 1100px; }  /* line the switch up with the panel's edge */
+.view-head .view-rail { margin-left: auto; font-size: 0.8rem; color: var(--dim); }
+.view-head .switch-error:empty { display: none; }
 .status.ok { color: var(--ok); }
 .status.idle { color: var(--idle); }
 .status.off { color: var(--dim); }
@@ -304,6 +378,9 @@ a.strip-item:hover, .brand:hover { color: var(--fg); }
   content: ""; position: absolute; height: 14px; width: 14px; left: 3px; top: 3px;
   background: var(--fg); border-radius: 50%; transition: transform 0.15s;
 }
+@media (prefers-reduced-motion: reduce) {
+  .rail-switch, .rail-switch::before { transition: none; }
+}
 .rail-switch[aria-checked="true"] { background: var(--accent); }
 .rail-switch[aria-checked="true"]::before { transform: translateX(18px); }
 .rail-switch:disabled { opacity: 0.5; cursor: wait; }
@@ -322,7 +399,7 @@ form.auth label { display: block; font-size: 0.8rem; color: var(--dim); margin-t
 form.auth input {
   width: 100%;
   background: var(--panel-2);
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge);
   color: var(--fg);
   padding: 8px;
   margin-top: 4px;
@@ -342,15 +419,17 @@ form.auth button {
 }
 .error { color: var(--err); font-size: 0.85rem; margin-top: 10px; }
 .hint { color: var(--dim); font-size: 0.8rem; margin-top: 10px; line-height: 1.4; }
+.hint a { color: var(--accent); }  /* a hint that points elsewhere (e.g. survey → Kismet) */
 /* GPS-auto NOAA caption: inline in the listen controls, so no top margin. */
 #sdr-noaa-auto { margin-top: 0; font-size: 0.75rem; }
 .linkbtn { background: none; border: 0; padding: 0; font: inherit; color: var(--accent); cursor: pointer; text-decoration: underline; }
-.sq-input { width: 5em; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px; margin-left: 4px; }
+.sq-input { width: 5em; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--edge); border-radius: 4px; padding: 2px 4px; margin-left: 4px; }
 .qr { background: #fff; padding: 12px; border-radius: 4px; display: inline-block; margin-top: 12px; }
 
 /* Mesh text messages (Meshtastic panel) */
 .mesh-log {
   margin-top: 12px;
+  min-width: 0;
   max-height: 260px;
   overflow-y: auto;
   border: 1px solid var(--line);
@@ -360,7 +439,7 @@ form.auth button {
 }
 .mesh-msg { padding: 6px 0; }
 .mesh-msg + .mesh-msg { border-top: 1px solid rgba(34, 48, 34, 0.5); }
-.mesh-meta { color: var(--dim); font-size: 0.75rem; }
+.mesh-meta { color: var(--dim); font-size: 0.75rem; overflow-wrap: anywhere; }  /* long node or place names */
 .mesh-text { font-size: 0.92rem; overflow-wrap: anywhere; white-space: pre-wrap; }
 .mesh-msg.mine .mesh-text { color: var(--accent); }
 .mesh-send { display: flex; gap: 8px; margin-top: 10px; }
@@ -371,7 +450,7 @@ form.auth button {
   font-size: 0.88rem;
   color: var(--fg);
   background: var(--panel-2);
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge);
   border-radius: 4px;
   padding: 6px 8px;
 }
@@ -381,6 +460,40 @@ form.auth button {
 .mesh-send button:disabled { opacity: 0.5; cursor: default; }
 .mesh-send-status { font-size: 0.8rem; color: var(--dim); margin-top: 6px; min-height: 1em; }
 .mesh-send-status.err { color: var(--err); }
+/* The browser's default placeholder grey fails contrast on --panel-2 in both skins. */
+::placeholder { color: var(--dim); opacity: 1; }
+
+/* Actuator: a control that transmits or changes hardware (webdash-design-team.md backlog item 1).
+   It always states what it does; when blocked it says why in text, never by fading alone. */
+.actuator { max-width: 72ch; }
+.act-glance { margin: 10px 0 0; font-size: 0.85rem; display: flex; align-items: baseline;
+  gap: 6px; flex-wrap: wrap; }
+.actuator[data-medium="rf"] .act-glance { color: var(--tx); }
+.act-glyph { width: 1em; height: 1em; flex: none; align-self: center; }
+.act-tag { font-weight: bold; letter-spacing: 0.05em; border: 1px solid currentColor;
+  border-radius: 3px; padding: 0 4px; font-size: 0.75rem; }
+.act-note, .act-retries { margin: 4px 0 0; font-size: 0.8rem; color: var(--dim); }
+.act-note { color: var(--fg); }
+.act-count { align-self: center; font-size: 0.8rem; color: var(--dim); white-space: nowrap; }
+.act-count.over { color: var(--err); font-weight: bold; }
+.mesh-send .act-btn { cursor: pointer; }
+.actuator[data-medium="rf"] .act-btn { color: var(--tx); border-color: var(--tx); font-weight: bold; }
+.actuator[data-medium] .act-btn[aria-disabled="true"] { color: var(--dim); border-style: dashed; border-color: var(--dim);
+  cursor: not-allowed; font-weight: normal; }
+.act-reason { margin: 6px 0 0; font-size: 0.85rem; color: var(--fg); min-height: 1em; }
+.act-reason:not(:empty)::before { content: "▲ "; color: var(--warn); }
+.act-reason .act-fix { display: block; color: var(--dim); font-size: 0.8rem; margin-top: 2px; }
+.act-detail { margin-top: 8px; font-size: 0.82rem; }
+.act-detail summary { cursor: pointer; color: var(--dim); }
+.act-detail ul { margin: 6px 0 0; padding-left: 1.2em; }
+.act-detail li + li { margin-top: 4px; }
+.actuator[data-medium="local"] .act-glance { color: var(--fg); }
+.mesh-tier { display: block; font-size: 0.78rem; color: var(--dim); }
+.act-option { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px;
+  font-size: 0.82rem; color: var(--fg); cursor: pointer; }
+.act-option input { accent-color: var(--accent); width: 1rem; height: 1rem; }
+.act-mqtt { margin-top: 18px; padding-top: 10px; border-top: 1px solid var(--line); }
+.act-mqtt .act-btn { margin-top: 8px; }
 
 /* ---- Learning platform (the Chart Table) ---- */
 .learn-chip { color: var(--learn); }
@@ -412,7 +525,7 @@ a.learn-chip:hover { color: var(--fg); }
 .step-state { font-size: 0.78rem; margin: 4px 0 0 1.4em; }
 .step-check { font-size: 0.75rem; color: var(--dim); margin: 4px 0 0 1.4em; }
 .step .btn, .step .paste { margin: 8px 0 0 1.4em; }
-.paste { display: block; width: calc(100% - 1.4em); font: inherit; font-size: 0.8rem; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 6px; }
+.paste { display: block; width: calc(100% - 1.4em); font: inherit; font-size: 0.8rem; color: var(--fg); background: var(--bg); border: 1px solid var(--edge); border-radius: 4px; padding: 6px; }
 .small { font-size: 0.75rem; margin-left: 1.4em; }
 .lab-controls { display: flex; gap: 10px; }
 .btn.primary { color: #06210f; background: var(--accent); border-color: var(--accent); font-weight: bold; }
@@ -424,7 +537,7 @@ a.learn-chip:hover { color: var(--fg); }
 .req { color: var(--learn); font-weight: normal; font-size: 0.8rem; }
 .choices { display: grid; gap: 6px; margin-top: 6px; }
 .choice { display: flex; gap: 8px; align-items: baseline; cursor: pointer; }
-.num-in { font: inherit; width: 9em; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; }
+.num-in { font: inherit; width: 9em; color: var(--fg); background: var(--bg); border: 1px solid var(--edge); border-radius: 4px; padding: 4px 6px; }
 .q-result { font-size: 0.9rem; margin-top: 6px; }
 .q-result.ok, .q-result.no { color: var(--learn); }
 .quiz-panel > * { max-width: 80ch; }
@@ -458,7 +571,7 @@ body.plain-labels .sub { display: none; }
 .learn-link:hover { text-decoration: underline; }
 .gloss-i { color: var(--learn); text-decoration: none; margin-left: 4px; font-size: 0.8em; }
 .search-in { width: 100%; max-width: 40ch; font: inherit; font-size: 1rem; color: var(--fg); background: var(--bg);
-  border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; margin-bottom: 12px; }
+  border: 1px solid var(--edge); border-radius: 4px; padding: 8px 10px; margin-bottom: 12px; }
 .sheet-handle { display: none; }
 body.dock-hidden .learn-cols > aside.learn-side, body.dock-hidden .learn-cols .dock { display: none; }
 body.dock-hidden .learn-cols, body.dock-hidden .learn-cols.doing { grid-template-columns: 1fr; }
@@ -520,6 +633,66 @@ body.dock-hidden .learn-cols, body.dock-hidden .learn-cols.doing { grid-template
   .mesh-send select { max-width: none; flex-basis: 100%; }
 }
 
+/* ---- Build log (#/timeline): how webdash itself was built ---- */
+.timeline .tl-intro { margin-bottom: 18px; }
+.timeline .tl-intro h2 { margin-bottom: 8px; }
+.timeline .tl-intro .hint { margin-top: 0; }
+
+/* A dated vertical rail down the left; each step a card, each card a brass prompt callout. */
+.tl { position: relative; padding-left: 26px; max-width: 1100px; }
+.tl::before {
+  content: ""; position: absolute; left: 4px; top: 6px; bottom: 6px; width: 2px;
+  background: linear-gradient(var(--accent), var(--accent) 72%, transparent);
+  opacity: 0.5;
+}
+.tl-phase { margin: 0; }
+.tl-phase-head {
+  position: relative; font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--accent); margin: 26px 0 12px; font-weight: bold;
+}
+.tl-phase:first-child .tl-phase-head { margin-top: 0; }
+.tl-phase-head::before {
+  content: ""; position: absolute; left: -26px; top: 50%; transform: translateY(-50%);
+  width: 12px; height: 2px; background: var(--accent); opacity: 0.6;
+}
+.tl-item { position: relative; margin-bottom: 18px; }
+.tl-item::before {
+  content: ""; position: absolute; left: -26px; top: 8px; width: 10px; height: 10px;
+  border-radius: 50%; background: var(--dot, var(--accent)); border: 2px solid var(--bg);
+  box-shadow: 0 0 0 2px var(--line);
+}
+.tl-card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 7px;
+  padding: 14px 16px; min-width: 0;
+}
+.tl-card-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.tl-date {
+  color: var(--dim); font-size: 0.74rem; letter-spacing: 0.04em; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+/* Category tag: coloured per --tag (set inline from the category's CSS token). */
+.tl-tag {
+  font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap;
+  color: var(--tag, var(--dim)); border: 1px solid var(--tag, var(--line));
+  border-radius: 999px; padding: 1px 8px; line-height: 1.5; align-self: center;
+  background: color-mix(in srgb, var(--tag, var(--dim)) 12%, transparent);
+}
+.tl-legend { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.tl-title { font-size: 0.98rem; margin: 0; line-height: 1.25; flex-basis: 100%; }
+.tl-body { margin: 8px 0 0; font-size: 0.86rem; color: var(--fg); line-height: 1.5; }
+
+/* Prompt callout: brass (the repo's "something to learn / note" colour), set off from the body. */
+.tl-callout {
+  margin-top: 12px; background: var(--panel-2); border: 1px solid var(--line);
+  border-left: 3px solid var(--learn); border-radius: 0 5px 5px 0; padding: 9px 12px;
+}
+.tl-callout-label {
+  display: inline-flex; align-items: center; gap: 7px; color: var(--learn);
+  font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 5px;
+}
+.tl-callout-label::before { content: "\275D"; font-size: 0.95rem; line-height: 0; }
+.tl-callout-text { margin: 0; font-size: 0.85rem; color: var(--fg); font-style: italic; line-height: 1.5; }
+
 /* ========================================================================
    SECOND SKIN — "Simpson" (vintage analog-instrument), added 2026-10-04.
 
@@ -544,16 +717,17 @@ body.dock-hidden .learn-cols, body.dock-hidden .learn-cols.doing { grid-template
   --panel-2: #e6d9b8;   /* recessed sub-panel (inputs, steps) */
   --line: #2a2118;      /* dark bakelite bezel */
   --fg: #22190f;        /* sepia-black engraving ink */
-  --dim: #6a5a40;       /* faded legend text */
-  --ok: #2f6a3a;        /* instrument "in range" green */
-  --warn: #9a6a08;      /* goldenrod caution band */
-  --off: #8a7c60;       /* un-powered / dormant */
+  --dim: #5e4e36;       /* faded legend text; ≥ 4.5:1 on --bg */
+  --ok: #285c32;        /* instrument "in range" green; ≥ 4.5:1 on --bg */
+  --edge: var(--line);  /* form-control borders (already dark here) */
+  --warn: #714c04;      /* goldenrod caution band; darkened 2026-10-11 to reach 4.5:1 on panel-2 */
+  --off: #7a6c50;       /* un-powered / dormant; ≥ 3:1 on --panel and --panel-2 */
   --err: #932014;       /* fault red */
   --accent: #8a2b1f;    /* Simpson needle oxblood — links, controls */
-  --idle: #2f6675;      /* faded panel teal */
+  --idle: #2a5c6a;      /* faded panel teal; ≥ 4.5:1 on --bg */
   --focus: #8a2b1f;     /* dark outline reads on ivory; amber would not */
-  --learn: #8a5a12;     /* brass, "something to learn" */
-  --tx: #a9461a;        /* burnt-orange transmit warning */
+  --learn: #6f480f;     /* brass, "something to learn"; ≥ 4.5:1 on --bg */
+  --tx: #8a3713;        /* burnt-orange transmit warning; darkened 2026-10-11 to reach 4.5:1 on panel-2 */
 }
 
 /* Type. Body is the book serif; headings and the wordmark are the Didone. */
@@ -615,9 +789,50 @@ body.dock-hidden .learn-cols, body.dock-hidden .learn-cols.doing { grid-template
 /* Hard-coded colours from the dark skin that tokens don't reach. */
 :root[data-skin="vintage"] .row + .row,
 :root[data-skin="vintage"] .mesh-msg + .mesh-msg { border-top-color: rgba(42, 33, 24, 0.22); }
-:root[data-skin="vintage"] .step.passed { border-color: rgba(47, 106, 58, 0.5); }
+:root[data-skin="vintage"] .step.passed { border-color: rgba(40, 92, 50, 0.5); }  /* --ok #285c32 */
 :root[data-skin="vintage"] form.auth button { color: #f1e7cc; }  /* cream on oxblood */
-/* Rail chips carry no colour token of their own, so they fall to the browser's link blue,
-   which clashes with the sepia palette. Point them at the accent here (dark skin unchanged). */
-:root[data-skin="vintage"] .rail-chip { color: var(--accent); letter-spacing: 0.06em; }
+/* Rail chips carry no colour token of their own, so before the first status they fall to the
+   browser's link blue, which clashes with the sepia palette: point them at the accent. Once a status
+   class is set, it carries the state colour (an earlier single rule here made every chip oxblood,
+   so on/off/error looked alike). Off uses --dim, not --off, which is too faint for text. */
+:root[data-skin="vintage"] .rail-chip { letter-spacing: 0.06em; }
+:root[data-skin="vintage"] .rail-chip:not(.ok):not(.off):not(.err) { color: var(--accent); }
+:root[data-skin="vintage"] .rail-chip.ok { color: var(--ok); }
+:root[data-skin="vintage"] .rail-chip.off { color: var(--dim); }
+:root[data-skin="vintage"] .rail-chip.err { color: var(--err); }
 :root[data-skin="vintage"] a.rail-chip:hover { color: var(--fg); }
+
+/* --- Claude-assisted site survey (Wi-Fi view) ------------------------------------------- */
+.survey-start, .survey-wp-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; margin: 10px 0; }
+.survey-start label, .survey-wp-ctl label { display: flex; flex-direction: column; font-size: 0.75rem; color: var(--dim); gap: 3px; }
+.survey-start input, .survey-wp-ctl input {
+  background: var(--panel-2); border: 1px solid var(--edge); border-radius: 4px;
+  color: var(--fg); padding: 6px 8px; min-width: 180px; font: inherit;
+}
+.survey-active-head { display: flex; gap: 10px; align-items: baseline; margin-bottom: 4px; }
+.survey-wp-list, .survey-list { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 0.8rem; }
+.survey-wp-list th, .survey-list th { text-align: left; color: var(--dim); font-weight: normal; border-bottom: 1px solid var(--line); padding: 4px 6px; }
+.survey-wp-list td, .survey-list td { padding: 4px 6px; border-bottom: 1px solid var(--panel-2); vertical-align: top; }
+.warn-text { color: var(--warn); }
+.pill { display: inline-block; font-size: 0.65rem; padding: 1px 6px; border-radius: 8px; background: var(--accent); color: #06210f; margin-left: 6px; vertical-align: middle; }
+.linklike { background: none; border: none; color: var(--accent); cursor: pointer; padding: 0; font: inherit; text-align: left; }
+.linklike:hover { color: var(--fg); text-decoration: underline; }
+.report-links { display: flex; flex-wrap: wrap; gap: 10px; }
+.report-link { color: var(--accent); font-size: 0.78rem; text-decoration: none; white-space: nowrap; }
+.report-link:hover { color: var(--fg); text-decoration: underline; }
+.survey-preview { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; margin-top: 10px; background: var(--panel-2); }
+.survey-preview-head { display: flex; justify-content: space-between; align-items: baseline; }
+.survey-stats { display: flex; flex-wrap: wrap; gap: 14px; margin: 8px 0; font-size: 0.85rem; }
+.survey-stats b { color: var(--fg); font-size: 1.05rem; }
+.survey-findings { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.survey-findings .finding { border-left: 3px solid var(--line); padding: 2px 0 2px 8px; font-size: 0.82rem; }
+.finding-warn { border-left-color: var(--warn); }
+.finding-crit { border-left-color: var(--err); }
+.finding-info { border-left-color: var(--accent); }
+.report-group { display: inline-flex; align-items: baseline; gap: 6px; color: var(--dim); font-size: 0.78rem; margin-right: 6px; }
+.survey-focus-pick { margin: 10px 0 4px; display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; }
+.survey-focus-pick label { font-size: 0.8rem; color: var(--dim); }
+.survey-focus-pick select { background: var(--panel-2); border: 1px solid var(--line); color: var(--fg); padding: 4px 6px; border-radius: 4px; font: inherit; max-width: 100%; }
+#survey-focus h4 { margin: 10px 0 6px; font-size: 0.9rem; }
+.survey-map { overflow-x: auto; margin: 6px 0; border: 1px solid var(--line); border-radius: 4px; }
+.survey-map svg { display: block; max-width: 100%; height: auto; }

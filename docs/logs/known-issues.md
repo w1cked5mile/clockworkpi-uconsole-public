@@ -11,6 +11,113 @@ Symptoms, causes, fixes. Seed from forum threads; add your own as you hit them.
 
 ## Entries
 
+### Meshnology packs read 4.48 V — above the 4.20 V full-charge limit, or the meter reads high
+
+- **Update 2026-10-11, late — probably the meter.** The owner fitted the pair (`JP1` bridged).
+  At 22:50Z the PMIC read **3.97 V, charging at ≈1.65 A**. Across the same pins, the DM-20 read
+  **4.8 V**. On the removed 18650s it read 4.3 V against an expected ≈4.15–4.20 V. That's two
+  different errors from one meter, both high, which doesn't fit a pack really above 4.20 V that is
+  taking constant-current charge. Pouches are not warm. Data: [`build-log.md`](build-log.md),
+  2026-10-11 "18650s out" entry. **Status: likely meter fault, open** until a fresh meter battery
+  or a second meter reads the pack at about the PMIC's value. The handling advice below still
+  holds until then. Charge attended, and check for puffing.
+
+- **Symptom (owner, 2026-10-11):** both Meshnology packs read **4.48 V** each on the owner's
+  meter, and the same with the two joined on the Y harness. The label says `3.7V`, so the cells
+  are standard LiPo with a **4.20 V** full charge. Even high-voltage (LiHV) cells stop at
+  4.35–4.45 V. A pack protection board normally cuts off charging at about 4.25–4.30 V.
+- **Which is it:** either the cells really are over-charged (protection board absent or failed,
+  or the charger was wrong), or the meter reads about 0.28 V high. The reading alone can't
+  separate the two.
+- **Reference for checking the meter:** at 2026-10-11 20:59Z the PMIC read the fitted 18650 pair
+  at **4.202 V** (charging, 100 %) from `/sys/class/power_supply/axp20x-battery/voltage_now`.
+  Put the same meter across the 18650 pair and run, in the same minute:
+  ```bash
+  cat /sys/class/power_supply/axp20x-battery/voltage_now   # µV
+  ```
+  If the meter shows ≈4.48 V there too, it reads high and the LiPos are really ≈4.20 V. If it
+  shows ≈4.20 V, the LiPos really are at 4.48 V. *Unverified until done.* The AXP's ADC is not a
+  calibrated reference, but it is good to tens of mV, so it easily shows a 0.28 V offset.
+- **Until it is settled:** don't connect the pair to the board, and don't charge it. Keep it on a
+  non-flammable surface, away from anything else, and check both pouches for puffing. If the
+  4.48 V is real, bring the packs down to about 3.8 V with a resistive load *before* they go in
+  the device. Don't use the AXP charger for that. Treat any puffed pouch as scrap.
+
+### ~~SDR listen: switching station fails with "SDR is busy (listen)"~~ — RESOLVED 2026-10-11
+
+- **Symptom:** picking another station (or the scanner) in the webdash SDR view while one was
+  playing left the player silent with "couldn't start audio (SDR busy, or rail off?)". The bridge
+  answered the new `/listen` with 409 `SDR is busy (listen)`.
+- **Cause (confirmed with a stub-hardware loop):** `listen()` in `sdr.js` drops the old stream and
+  requests the new one at once, but the bridge released the tuner only in the old handler's
+  `finally`, which runs on its next failed write to the departed client. `busy` cleared **3.3 s**
+  after the drop, so every switch landed inside that window. Reported 2026-10-01 as the `<audio>`
+  element re-requesting the URL; headless chromium made only one request (`Range: bytes=0-`), so
+  that part is *unverified* in a real browser. The station switch reproduces regardless.
+- **Fix:** latest wins between listen and scan (`_claim_stream` in
+  [`sdr-bridge.py`](../../webdash/host-helpers/sdr-bridge.py)). The new request stops the old
+  stream, waits for its `rtl_fm` to exit, and streams; the old handler no longer frees a tuner it
+  no longer owns. Hunt and ADS-B still refuse with 409. Regression test:
+  [`test_sdr_bridge.py`](../../webdash/tests/test_sdr_bridge.py).
+- **Live since 2026-10-11 16:29Z:** the owner restarted `sdr-bridge` after the merge (#41), so it
+  runs this code (`systemctl show sdr-bridge -p ActiveEnterTimestamp`).
+- **Not yet verified:** with the real dongle and in a browser. Needs ADS-B stopped, the SDR rail
+  on, and a station switch in the SDR view.
+
+### Meshtastic MQTT uplink and map reporting are on, though documented as unconfigured
+
+- **Observed:** 2026-10-11, read-only, via the collector's short-lived interface:
+  `moduleConfig.mqtt` has `enabled: true`, `address: mqtt.scmesh.us`, `root: msh/US/SC`,
+  `tls_enabled: false`, `encryption_enabled: true`, `map_reporting_enabled: true`, with a username
+  set (credentials not read into the repo). `ss -tn` showed an established connection to the
+  broker on port 1883. The primary channel `SCMesh` has `uplink_enabled: true`; `NCMesh` doesn't.
+- **Expected:** [`../../software/meshtastic.md`](../../software/meshtastic.md) says MQTT was
+  "deliberately left unconfigured on 2026-09-17".
+- **Impact:** Fancy posts its SCMesh traffic to the SCMesh broker, and map reporting publishes
+  the node's position (about 2.9 km precision on SCMesh) to the public map. This doesn't leak
+  anything into the repo, but it is a privacy setting that differs from the docs. The webdash
+  transmit control now states the uplink beside the button.
+- **Cause:** unknown, and not checked (when it was enabled, or by what).
+- **Status:** open, owner decision. Since 2026-10-11 the webdash Mesh view has an MQTT on/off
+  switch that states all of the above. The CLI equivalent is
+  `meshtastic --host localhost --set mqtt.enabled false`, and map reporting alone can be stopped
+  with `--set mqtt.map_reporting_enabled false`. Either way, meshtasticd restarts to apply it.
+
+### Meshtastic primary channel was `LongFast`, not `SCMesh` as decided 2026-09-23
+
+- **Observed:** 2026-10-11, read-only. `meshtastic --host localhost --info` showed region `US`,
+  `LONG_FAST`, no frequency override, and channels **PRIMARY `LongFast`**, SECONDARY `NCMesh`,
+  SECONDARY `SCMesh` (all on the public default key). Every meshtasticd boot in the retained journal
+  (2026-10-02 to 2026-10-10, 63 entries) logged `Set radio: region=US, name=LongFast, … ch=19,
+  power=30` and `Frequency set to 906.875000`. Check with
+  `journalctl -u meshtasticd | grep "Set radio"`.
+- **Expected:** PRIMARY `SCMesh` (924.125 MHz), per the 2026-09-23 decision and
+  [`../../software/meshtastic.md`](../../software/meshtastic.md).
+- **Cause:** the LoRa config had **`lora.channel_num` pinned to `20`**, which forces slot 19
+  (906.875 MHz) whatever the primary channel is called. Renaming the primary alone left the radio
+  on `ch=19`. Who set it, and when, is unknown. "Slot 20" is how the Meshtastic docs number
+  LongFast's default, so importing a LongFast channel URL or app setting is a plausible source
+  (*unverified*). The journal doesn't reach back far enough to show when it happened.
+- **Impact while it lasted:** Fancy transmitted on 906.875 MHz. Secondary channels share the
+  primary's frequency, so its `SCMesh` traffic never reached nodes on 924.125 MHz. Both
+  frequencies are inside US 902–928 MHz.
+- **Fix, 2026-10-11 (owner request):** channel URLs saved off-repo first
+  (`~/.local/state/clockworkpi-uconsole/meshtastic-backup/`, mode 600). Then:
+
+  ```bash
+  meshtastic --host localhost --ch-index 2 --ch-del           # drop the duplicate secondary SCMesh
+  meshtastic --host localhost --ch-index 0 --ch-set name SCMesh
+  meshtastic --host localhost --set lora.channel_num 0        # let the primary name pick the slot
+  journalctl -u meshtasticd --since "-5 min" | grep -E "Set radio|Frequency set"
+  ```
+
+  Result: `Set radio: region=US, name=SCMesh, config=0, ch=88, power=30`, `Final Tx power: 22 dBm`,
+  `Frequency set to 924.125000`. Channels are now PRIMARY `SCMesh`, SECONDARY `NCMesh`. The webdash
+  container was restarted so it reloaded the channel list. `--export-config` hung (60 s timeout)
+  with webdash's client connected, so only the channel URLs were backed up.
+- **Status:** **resolved 2026-10-11.** Still to do: re-run checklist 3.10 (second-node link) on
+  this configuration. If `channel_num` drifts back, the `Set radio` line will show `ch=19` again.
+
 ### Fancy's network link stutters / drops packets on a weak Wi-Fi signal — onboard `wlan0` power save
 
 **Symptom.** SSH / tailnet sessions to Fancy lag and stall and look like they are "losing
@@ -83,9 +190,166 @@ Ethernet (`eth0`, 1 Gbps, currently unplugged).
     every runtime estimate in `power-budget.md`.
 - **Until those are done:** treat pack energy as unmeasured, and do not leave the device charging
   unattended. Replacement is a matched pair from a named manufacturer with a real datasheet.
-- **Status:** open as of 2026-09-16. Cells were fitted 2026-09-15, and **the device was already
-  powered on and booted once, 2026-09-16, before any of these checks were done** — see
-  `docs/logs/build-log.md`'s "First boot" entry. Do the checks now, before any *further* power-up.
+- **Measured 2026-10-09 — the pair delivers ≈6.7 Wh.** In a full in-device discharge from
+  4.20 V at ≈1.25 A (≈0.6 A per cell, ≈0.2 C for a genuine cell), the pair gave **≈1.78 Ah / ≈6.7 Wh**
+  in ≈85 min before the device lost power at 3.49 V under load. That is about a third of a genuine
+  3000 mAh pair. If the cells share equally it is ≈0.9 Ah each (*estimate*); one dead cell plus one
+  ≈1.8 Ah cell would give the same total. Data, checksums and curve:
+  [`build-log.md`](build-log.md) 2026-10-09.
+- **Measured 2026-10-09:** whole-path internal resistance **≈95 mΩ (80–110)** by CPU load step
+  (`build-log.md`, same date). That is normal for working cells and explains the ≈0.3 V drop on
+  unplugging the charger. It says nothing about capacity.
+- **Status:** **capacity claim confirmed false by measurement (2026-10-09).** Still open: weigh each
+  cell, voltage-match them, and capacity-test each one separately to tell "two weak cells" from "one
+  dead cell" (bench-test the removed cells). The pair was retired at the Meshnology swap (2026-10-11,
+  see below); while in service it gave about 75 min of idle use before an unannounced cut.
+- **Retired 2026-10-11:** the pair is out, and the holder was removed from the NVMe board. The
+  per-cell checks only matter if the cells are ever reused.
+
+### Power cuts out with no warning at ≈3.5 V under load, leaving charge in the pack
+
+- **Observed:** twice, on two different packs, with a hard power loss each time (journal stops
+  mid-stream, no shutdown sequence):
+
+  | Run | Pack | Last logged | Slope before the cut |
+  |---|---|---|---|
+  | 2026-10-09 | 18650 pair (retired) | 3.49 V at ~1.25 A | −11 mV/min (knee: cells really near empty) |
+  | 2026-10-12/13 | Meshnology pair | **3.526 V at 1.27 A**, 32 s before the cut | **−1.2 mV/min, no knee** |
+
+- **Impact:** the Meshnology pair delivered 52.2 Wh and then stopped while the curve was still
+  flat, so its usable energy is capped by the cut-off rather than by the cells. A hard power loss
+  also risks the filesystem: the logger's last line was written as NUL bytes. A low-voltage guard
+  at **3.45 V cannot work**, because the device dies above it.
+- **Cause:** *unverified.* The same cut-off on two packs points to the system side. Candidates:
+  - **The AXP's power-off voltage.** The device tree sets `voltage-min-design-microvolt` to 3.3 V,
+    so this cut needs a ≈0.23 V transient dip, ≈2 A extra at ≈0.1 Ω. The 2026-10-13 cut came
+    0.75 s after a `learn-sync` run finished.
+  - **The mainboard's 5 V boost** undervoltage lockout.
+  - **The pack's protection board** (an unlikely match for ≈3.5 V).
+- **Workaround:** watch `voltage_now`, not the %: plug in by **3.60 V**, shut down by **3.55 V**
+  (loaded readings, [`../reference/power-budget.md`](../reference/power-budget.md#low-battery-what-to-watch)).
+  If a guard is used, set it at **≥3.58 V** and run it as a persistent service. **Webdash now
+  surfaces this (2026-10-15):** the status strip and Power tile read `⚠ charge now` at ≤3.60 V and
+  `⚠ shut down` at ≤3.55 V while on battery. That is a warning, not the guard — the auto-shutdown
+  service is still open.
+- **Status:** open.
+  - [ ] Read the AXP's power-off voltage register.
+  - [ ] Find the cut point on a bench supply.
+  - [ ] Log the pack's resting voltage right after a cut to estimate how much charge is left.
+
+### Hard power loss with OpenWebRX running; the owner suspects the USB rail being on
+
+- **Observed:** 2026-10-15. The journal stops mid-stream at **18:53:07Z** with no shutdown sequence
+  (a hard power loss, like the ≈3.5 V cut above), and Fancy rebooted at 18:53:38Z. The owner reports
+  it as another over-voltage shutdown, caused by the receiver being on with the USB rail on.
+  What the journal shows:
+
+  | Time (Z) | Event |
+  |---|---|
+  | 18:10:19 | the `openwebrx` container starts; it is still running at the cut (`Exited (255)` after the reboot) |
+  | 18:00–18:52 | the PMIC flips between **Charging ≈3.95 V** and **Discharging ≈3.75 V** every 10–20 min; `throttled=0x0` throughout |
+  | 18:52:08 | `jt9` (OpenWebRX's WSJT/FT8 decoder, inside the container) starts |
+  | 18:52:37 | last power sample: **Charging, 3.92 V**, `throttled=0x0` |
+  | 18:53:07 | last journal line |
+
+- **Not in the journal:** any USB rail switch, USB enumeration or over-current message in the hour
+  before. The USB rail's state at the cut is **not recorded**, so "USB rail on" is the owner's
+  report, *unverified*. The pack was ≈3.75 V loaded, well above the ≈3.5 V cut, so this is not
+  that entry's low-voltage cut.
+- **Cause:** *unverified.* Candidates: the charge input dropping out or tripping (the
+  Charging/Discharging flips; if it is the PMIC's input over-voltage protection, that would fit the
+  owner's "over voltage", but nothing here shows it), a load step from the receiver decoding plus the
+  USB rail's load, or the system-side cut in the entry above. Settle with the PMIC's power-off-reason
+  register (AXP `0x46`/IRQ status, *unverified* address) read right after the next cut, and a
+  `throttle-mon` sample that logs the USB rail.
+- **Guard (2026-10-15):** the SDR bridge now refuses to start OpenWebRX unless the aiov2 bridge
+  reports the USB rail **off**, and fails closed if it can't tell (`_usb_rail_on()` in
+  `webdash/host-helpers/sdr-bridge.py`, 409). The Receiver tab disables **Start receiver** with the
+  reason while the rail is on. This does not stop the rail being switched on *after* the receiver
+  starts.
+- **Status:** open.
+  - [ ] Read the AXP's power-off reason after the next cut.
+  - [ ] Log the USB rail state in `throttle-mon`.
+  - [ ] Decide whether turning the USB rail on should be refused while OpenWebRX runs.
+
+### Fuel gauge % is wrong: 100 % to cut-off on the 18650s, 99 % for 11 h on the Meshnology pair
+
+- **Observed:** 2026-10-09 discharge run. `axp20x-battery` `capacity` read **100 % for all 81 logged
+  minutes**, from 3.92 V down to 3.49 V. Then power was lost with no shutdown sequence in the journal.
+  Meshtastic telemetry over the same period reported `battery_level=101, voltage=0`.
+- **Impact:** nothing on the device, including the webdash Power station and `aiov2_ctl --status`,
+  warns before the cut. Treat the capacity % as meaningless on this pack, and watch the voltage
+  instead: under ~1.25 A load it fell **3.60 V at 74.5 min → 3.50 V at 81 min → cut**.
+- **Cause:** *unverified.* Most likely the AXP228's coulomb counter has never seen a full cycle on
+  this pack and is uncalibrated. Which stage cut the power (cell protection, the AXP228's
+  power-off voltage, or the 5 V boost) is also unknown.
+- **Re-checked on the Meshnology pair, 2026-10-12/13** (first full in-device discharge): the % read
+  **99 from 13:11Z until ≈40 Wh had been delivered (01:49Z)**, then fell **99 → 49 % in 2.7 h**
+  (≈3.4 Ah), and read **49 % at the power cut**. After the reboot it read 50–51 % while charging.
+  The device tree (`/proc/device-tree/battery@0`) describes a **6.7 Ah / 24.79 Wh** battery.
+  Fifty points per ≈3.4 Ah fits that size, not the ≈20 Ah pair; this link is *inferred*, and how
+  the AXP221 driver uses the DT value is *unverified*.
+- **Status:** open, now on the fitted pack. A full cycle did not calibrate it. The % is unusable
+  for runtime; use the voltage table in
+  [`../reference/power-budget.md`](../reference/power-budget.md#low-battery-what-to-watch).
+  Fixing it likely means a device-tree overlay with the pair's real capacity (*unverified*;
+  not attempted). `aiov2_ctl --status` and the webdash Power station both show this %.
+
+### Charge-current `current_now` over-reads by at least ~1.4×; true factor unconfirmed
+
+- **Observed:** 2026-10-13 recharge logged once a minute. Integrating `current_now` over the whole
+  charge gives **18.9 Ah / 78.9 Wh in**, against **13.8 Ah / 52.2 Wh measured out** on the discharge
+  immediately before it.
+- **The defensible bound:** a recharge cannot put in less than the previous discharge removed, yet
+  the pack did not start empty (it rebounded above the ≈3.53 V cut and had ~20 min of unlogged charge
+  before the logger caught it) and charging is lossy — so the real charge took *well under* 13.8 Ah,
+  and 18.9 Ah "in" means the charge ADC over-reads by **more than ~1.4×** (18.9 / 13.8). How much
+  more is not established. A **2× factor is plausible but unconfirmed**: the tempting "18.9 Ah for
+  57 %→99 % of a 74 Wh pack is impossible" argument leans on the fuel-gauge %, which is itself wrong
+  (see the entry above), so it cannot pin the factor.
+- **Which path is wrong:** the discharge integral (13.8 Ah / 52.2 Wh, near-full to an early cut) is
+  physically plausible and the charge integral is not, so the **charge** path is the suspect. But no
+  independent instrument has confirmed *either* current ADC — the one discharge cross-check (~0.88 A
+  idle draw) comes from the same ADC — so this is not proof the discharge path is correct, only that
+  it is the more plausible of the two.
+- **Impact:** any amps-in figure (the 1.45–1.96 A "charging at…" readings) is an upper bound, not
+  current into the cells; charge-time and charge-efficiency numbers built on `current_now` are off
+  in the same direction. The **52 Wh discharge energy** in
+  [`../reference/power-budget.md`](../reference/power-budget.md) is the figure runtime sizing uses
+  and the more trustworthy of the two integrals, but it **carries residual uncertainty** until the
+  charge ADC is settled — if the discharge ADC also reads off, 52 Wh moves too.
+- **Cause:** *unverified.* Likely the AXP228's charge- and discharge-current ADC channels (or their
+  driver scaling) differ. Settle it by comparing `current_now` on charge against the current
+  measured at the USB-C supply, and against `constant_charge_current` (1.95 A).
+- **Status:** open. Do not quote a charge-vs-discharge efficiency from these runs, and do not state
+  the over-read factor as 2× — the data supports only "≥~1.4×".
+
+### `readsb` crash-loops when the SDR rail is turned off under it
+
+- **Observed:** 2026-10-09. webdash's ADS-B mode had `readsb` running. When the SDR rail was
+  switched off for a battery test, it exited (`rtlsdr_read_async returned unexpectedly, probably
+  lost the USB device`). systemd then restarted it **about 340 times**, every 15 s, each failing
+  with `rtlsdr: no supported devices found`, until the device lost power 85 min later.
+- **Fix (workaround):** stop ADS-B in the webdash SDR view (or `sudo systemctl stop readsb`)
+  **before** turning the SDR rail off.
+- **Fix (2026-10-15):** turning the SDR rail off **from the dashboard** now stops ADS-B first
+  (`api_set_rail` in `webdash/app/main.py`), so this path no longer thrashes. A CLI
+  `aiov2_ctl SDR off` still bypasses it — capping `StartLimitBurst` on the readsb unit (a systemd
+  drop-in) would cover that too.
+- **Status:** open (minor). Dashboard path fixed; CLI path and an on-device confirmation
+  (toggle SDR off mid-ADS-B, watch the journal) remain.
+
+### `tar1090` logs "No aircraft.json" every 10 s whenever `readsb` is not running
+
+- **Observed:** 2026-10-13, `readsb` inactive and disabled (the normal state when not doing ADS-B).
+  The `tar1090` unit stays up and logs `No aircraft.json found in /run/readsb during the last 30
+  seconds!` **every ~10 s** — 359 lines in one hour. Cosmetic: it is tar1090's data-feed watchdog
+  noticing `readsb` isn't publishing, nothing is broken.
+- **Impact:** journal spam only. It clutters `journalctl` and crowds out real messages during
+  battery/power debugging (this is how it was noticed). No resource impact seen.
+- **Fix (not done):** stop `tar1090` when ADS-B isn't in use (it only needs to run alongside
+  `readsb`), or lower that unit's log level. Leaving it: harmless.
+- **Status:** open, minor.
 
 ### ~~`ANT1` carries an unmarked stub that is almost certainly the wrong band~~ — WITHDRAWN 2026-09-15
 
@@ -238,7 +502,8 @@ Ethernet (`eth0`, 1 Gbps, currently unplugged).
   the PCF85063 lost power entirely, which is expected with an empty holder.
 - **Fix:** Fit the coin cell (listed as CR1220; *verify the holder size*), then run checklist 3.1:
   set the RTC, power off fully with no network, boot and compare.
-- **Status:** open — waiting on the cell.
+- **Status:** **resolved 2026-10-10** — cell fitted and checklist 3.1 passed (owner-tested). The
+  2026-10-10 23:40 UTC boot set the clock from the RTC with no POR or power-loss message.
 
 ### `rtl_test` fails with `usb_claim_interface error -6` while `readsb` is enabled
 
@@ -424,6 +689,9 @@ Ethernet (`eth0`, 1 Gbps, currently unplugged).
   **Armed since 2026-09-23:** the HackerGadgets NVMe battery board, which carries `JP1`, is
   installed. `JP1` was checked the same day and is **open**, correct for the interim 18650s now
   fitted (checklist 1.7). It must be soldered **closed** before the Meshnology LiPo goes on.
+  **2026-10-11:** holder removed and `JP1` soldered closed (owner); 18650s can no longer be fitted
+  to this board without reopening `JP1`. Meter continuity before connecting the LiPo.
+  **Later 2026-10-11:** Meshnology pair connected and charging normally (build log).
 - `rpiboot` does nothing → charge-only USB-C cable; use a data cable.
 - NVMe not detected / won't boot → bootloader EEPROM order or version; check `rpi-eeprom-config`.
 - AIO module dead → its rail is off by default; `aiov2_ctl <FEATURE> on` or `pinctrl <GPIO> op`/`dh`.

@@ -321,5 +321,29 @@ class AnswersStripped(unittest.TestCase):
         self.assertIn("prompt", pub["items"][0])
 
 
+class StationRoutes(unittest.TestCase):
+    """Every station a module may name (schema.STATIONS, which learn-compile.py validates) must be a
+    route the page knows (main.js ROUTES, and SDR_TABS for sdr/<tab>) and have a display name in
+    learn.js STATION_NAME, or its "Open the … station" link goes nowhere (redesign phase 2)."""
+    STATIC = Path(__file__).resolve().parent.parent / "app" / "static" / "js"
+
+    def test_every_station_routes(self):
+        import re
+        from app.learn import schema
+        if not (self.STATIC / "main.js").exists():
+            self.skipTest("app/static not beside tests/ (container run)")
+        main = (self.STATIC / "main.js").read_text(encoding="utf-8")
+        learn = (self.STATIC / "learn.js").read_text(encoding="utf-8")
+        routes = set(re.findall(r'"(\w+)"', re.search(r"const ROUTES = \[(.*?)\];", main, re.S).group(1)))
+        tabs = set(re.findall(r'"(\w+)"', re.search(r"const SDR_TABS = \[(.*?)\];", main, re.S).group(1)))
+        names = re.search(r"const STATION_NAME = \{(.*?)\};", learn, re.S).group(1)
+        for st in schema.STATIONS:
+            view, _, tab = st.partition("/")
+            self.assertIn(view, routes, f"station {st!r}: no route {view!r} in main.js")
+            if tab:
+                self.assertIn(tab, tabs, f"station {st!r}: no SDR tab {tab!r}")
+            self.assertRegex(names, rf'(^|[\s{{,])"?{re.escape(st)}"?\s*:', f"station {st!r}: no STATION_NAME")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -22,8 +22,9 @@ Nothing unusual found.
 **readsb is `systemctl-disabled` (2026-10-03).** It was originally `enable`d (active on boot), which
 made ADS-B the implicit owner of the single tuner — it crash-looped until the SDR rail powered the
 dongle, then grabbed it. Per the owner's decision ([`../docs/logs/decisions.md`](../docs/logs/decisions.md))
-the SDR rail is now power-only and ADS-B is one of three mutually-exclusive SDR applications you
-choose in the webdash SDR view (ADS-B / broadcast-airband hunt / listen). tar1090 stays enabled —
+the SDR rail is now power-only and ADS-B is one of four mutually-exclusive SDR applications you
+choose in the webdash SDR view (ADS-B / broadcast-airband hunt / listen / OpenWebRX receiver — see
+[`openwebrx.md`](openwebrx.md)). tar1090 stays enabled —
 it is just a web server and serves an empty map until a decoder runs. To apply or confirm:
 
 ```bash

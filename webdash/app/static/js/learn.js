@@ -285,7 +285,9 @@ function head(backHref, backText, heading, extra) {
 
 function mins(m) { return m ? `${m} min` : ""; }
 
-const STATION_NAME = { mesh: "Mesh", gps: "GPS", sdr: "ADS-B (SDR)", wifi: "Wi-Fi survey", power: "Power", system: "System" };
+const STATION_NAME = { mesh: "Mesh", gps: "GPS", sdr: "SDR", wifi: "Wi-Fi", power: "Power",
+  system: "System", "sdr/adsb": "SDR · ADS-B", "sdr/hunt": "SDR · Hunt", "sdr/listen": "SDR · Listen",
+  survey: "Site survey", capture: "Packet capture", wpa: "WPA audit" };
 function stationLink(st) {
   return st ? h("p", {}, h("a", { class: "tile-link", href: `#/${st}` }, `Open the ${STATION_NAME[st] || st} station →`)) : null;
 }
@@ -573,7 +575,7 @@ function stationCard(lab, mod) {
   return h("aside", { class: "panel learn-side" },
     h("h2", {}, "Live on Fancy"),
     ...rails.map((r) => h("div", { class: "row" }, h("span", { class: "k" }, `${r} rail`),
-      h("span", { class: "rail-ctl" }, h("button", { type: "button", class: "rail-switch", role: "switch", "data-feature": r, "aria-label": `${r} rail`, "data-focus-key": `rail-${r}` })))),
+      h("span", { class: "rail-ctl" }, h("button", { type: "button", class: "rail-switch", role: "switch", "aria-checked": "false", "data-feature": r, "aria-label": `${r} rail`, "data-focus-key": `rail-${r}` })))),
     rails.length ? h("div", { class: "switch-error", role: "alert" }) : null,
     ...ev.map(liveRow),
     ...(lab.requires?.services || []).map((sv) => liveRow(`services.${sv}.active`)),
@@ -1042,7 +1044,7 @@ function driftBanner(m) {
 // on fact labels that have a glossary entry.
 // ---------------------------------------------------------------------------
 
-const STATION_MODULE = { mesh: "M4", gps: "M3", sdr: "M6", wifi: "M7", power: "M1", system: "M1b" };
+const STATION_MODULE = { mesh: "M4", gps: "M3", sdr: "M6", wifi: "M7", wpa: "M13", power: "M1", system: "M1b" };
 const FACT_GLOSSARY = {
   "Aircraft tracked": "aircraft-count", "With position": "with-position", "Fix": "fix-mode",
   "Grid": "grid-square", "Grid square": "grid-square", "Satellites": "satellites-used",

@@ -3,16 +3,28 @@
 
 Runs on the HOST (the webdash container has no /dev access) as wicked5mile on 127.0.0.1:8767, the
 same localhost trust boundary as the aiov2/kismet bridges. Receive-only, broadly legal (see the
-repo's knowledge/README.md). The RTL-SDR is a single tuner, so the three SDR applications —
-ADS-B (readsb), band hunt, and listen — are mutually exclusive: at most one owns the tuner at a
-time, tracked by `_busy`. The SDR rail must already be on (the dashboard's rail toggle); we don't
-force it, and turning the rail on no longer starts anything by itself — readsb is
-systemctl-disabled on this build (see software/adsb-tar1090.md), so the operator picks an
-application here rather than ADS-B grabbing the tuner on rail-up.
+repo's knowledge/README.md). The RTL-SDR is a single tuner, so the four SDR applications —
+ADS-B (readsb), band hunt, listen, and OpenWebRX (the web receiver) — are mutually exclusive: at
+most one owns the tuner at a time, tracked by `_busy`. Between the two streaming applications the
+latest request wins: a new listen or scan ends the live one and takes the tuner (see
+`_claim_stream`), so switching stations never collides with the stream being dropped. The SDR rail
+must already be on (the dashboard's rail toggle); we don't force it, and turning the rail on no
+longer starts anything by itself — readsb is systemctl-disabled on this build (see
+software/adsb-tar1090.md), so the operator picks an application here rather than ADS-B grabbing the
+tuner on rail-up.
 
 ADS-B is just another selectable application now: POST /adsb {action: start|stop} runs
 `sudo -n systemctl start|stop readsb` (already allowed NOPASSWD) and claims/releases the tuner.
 Starting a hunt or listen while ADS-B holds the tuner is refused — stop ADS-B first.
+
+OpenWebRX is a fourth selectable application: POST /owrx {action: start|stop} runs the host
+container (configs/openwebrx/docker-compose.yml, no sudo — the bridge user is in the docker group)
+and reserves the tuner the whole time it is up, since it opens the dongle lazily when a browser
+tunes. It is symmetric with ADS-B: it needs a free tuner to start, and blocks hunt/listen/ADS-B
+while running. A container started outside the bridge is still honoured — the claim paths check the
+live container state via `_owrx_active()`. It also refuses to start unless the aiov2 bridge reports
+the USB rail off (`_usb_rail_on()`, fails closed): a start with the rail on preceded a power cut on
+2026-10-15.
 """
 import json
 import os
@@ -21,6 +33,7 @@ import subprocess
 import tempfile
 import threading
 import time
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -45,11 +58,17 @@ RTL_MIN_HZ, RTL_MAX_HZ = 24_000_000, 1_766_000_000
 
 _lock = threading.Lock()
 _job = {"thread": None, "running": False}
-_state = {"stage": "idle", "band": None, "stations": [], "message": "", "updated": None}
+_state = {"stage": "idle", "band": None, "stations": [], "trace": None, "message": "", "updated": None}
 # Single tuner: the SDR applications are mutually exclusive. None | "hunt" | "listen" | "scan".
 # "scan" is the airband scanner — rtl_fm with multiple -f and a squelch cycles the channels and
 # pauses on any that breaks squelch (see _handle_listen).
 _busy = {"what": None, "info": None}
+# The live listen or scan stream. A new one takes the tuner from it (latest wins) rather than
+# getting 409: the page drops the old stream and requests the next at once, but a handler only
+# notices its client has gone on its next failed write (~3 s, measured 2026-10-11), so a station
+# switch always collided. gen names the owner; stop ends that stream; done is set once its rtl_fm
+# has exited and the tuner is free. Hunt and ADS-B are not preempted: they still refuse with 409.
+_stream = {"gen": 0, "stop": None, "done": None}
 MAX_SCAN = 48  # cap on explicit scan channels passed in the URL
 
 # Airband scanner live state, polled by the webdash at /scan/status. `active` is the frequency Hz
@@ -63,19 +82,23 @@ def _now():
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
-def _set_state(stage, message="", stations=None, band=None):
+_UNSET = object()
+
+
+def _set_state(stage, message="", stations=None, band=None, trace=_UNSET):
     _state.update(stage=stage, message=message, updated=_now())
     if stations is not None:
         _state["stations"] = stations
     if band is not None:
         _state["band"] = band
+    if trace is not _UNSET:         # explicit None clears a stale trace; _UNSET leaves it be
+        _state["trace"] = trace
 
 
-def parse_rtl_power(csv_text: str, snap: int) -> list[dict]:
-    """Turn rtl_power CSV into a station list. Each line is:
+def _rtl_power_bins(csv_text: str) -> list[tuple[int, float]]:
+    """Parse rtl_power CSV into (freq_hz, dB) bins sorted by frequency. Each line is:
         date, time, Hz_low, Hz_high, Hz_step, n_samples, dB, dB, ...
-    Collect every bin's (freq, dB), take the median as the noise floor, keep contiguous runs that
-    clear it by PEAK_MARGIN_DB, and report each run's strongest bin snapped to the band grid."""
+    Shared by the station finder and the spectrum trace so both read the same bins."""
     bins: list[tuple[int, float]] = []
     for line in csv_text.splitlines():
         parts = [p.strip() for p in line.split(",")]
@@ -88,9 +111,34 @@ def parse_rtl_power(csv_text: str, snap: int) -> list[dict]:
             continue
         for i, db in enumerate(dbs):
             bins.append((lo + i * step, db))
+    bins.sort(key=lambda b: b[0])
+    return bins
+
+
+def sweep_trace(csv_text: str) -> dict | None:
+    """The whole swept band for the webdash to draw: every bin, plus the median noise floor and the
+    PEAK_MARGIN_DB detection threshold the station finder uses. Receive-only display data; the peak
+    list in parse_rtl_power is the same sweep reduced to stations. Returns None on an empty sweep."""
+    bins = _rtl_power_bins(csv_text)
+    if not bins:
+        return None
+    floor = sorted(d for _, d in bins)[len(bins) // 2]  # median
+    return {
+        "lo_hz": bins[0][0],
+        "hi_hz": bins[-1][0],
+        "floor_db": round(floor, 1),
+        "threshold_db": round(floor + PEAK_MARGIN_DB, 1),
+        "points": [[f, round(db, 1)] for f, db in bins],
+    }
+
+
+def parse_rtl_power(csv_text: str, snap: int) -> list[dict]:
+    """Turn rtl_power CSV into a station list. Collect every bin's (freq, dB), take the median as
+    the noise floor, keep contiguous runs that clear it by PEAK_MARGIN_DB, and report each run's
+    strongest bin snapped to the band grid."""
+    bins = _rtl_power_bins(csv_text)
     if not bins:
         return []
-    bins.sort(key=lambda b: b[0])
     floor = sorted(d for _, d in bins)[len(bins) // 2]  # median
     threshold = floor + PEAK_MARGIN_DB
 
@@ -116,6 +164,73 @@ def parse_rtl_power(csv_text: str, snap: int) -> list[dict]:
     return out[:MAX_STATIONS]
 
 
+# OpenWebRX runs as its own host container (configs/openwebrx/docker-compose.yml) and owns the
+# tuner continuously while up, so it is a fourth mutually-exclusive SDR application. The bridge user
+# is in the `docker` group, so these need no sudo. Path is resolved from this file so it survives a
+# move of the checkout.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+OWRX_COMPOSE = os.path.join(_REPO_ROOT, "configs", "openwebrx", "docker-compose.yml")
+OWRX_CONTAINER = "openwebrx"
+# The aiov2 bridge (uconsole-aiov2-bridge.service) reports the AIO V2 rails; overridable for tests.
+AIOV2_STATUS_URL = os.environ.get("AIOV2_STATUS_URL", "http://127.0.0.1:8765/status")
+
+
+def _owrx(action):
+    """Start or stop the OpenWebRX container. `up -d` (not `start`) so a missing container is
+    created from the compose file; `stop` leaves it created for a fast next start."""
+    cmd = ["docker", "compose", "-f", OWRX_COMPOSE, "up", "-d"] if action == "start" \
+        else ["docker", "compose", "-f", OWRX_COMPOSE, "stop"]
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+
+
+def _owrx_active() -> bool:
+    out = subprocess.run(["docker", "inspect", "-f", "{{.State.Running}}", OWRX_CONTAINER],
+                         capture_output=True, text=True, timeout=10)
+    return out.stdout.strip() == "true"
+
+
+def _usb_rail_on() -> bool | None:
+    """The USB rail's state from the aiov2 bridge, or None when it can't say. Starting OpenWebRX
+    with the USB rail on preceded a power cut on 2026-10-15 (cause unverified), so the receiver
+    only starts with the rail known to be off."""
+    try:
+        with urllib.request.urlopen(AIOV2_STATUS_URL, timeout=3) as r:
+            usb = (json.load(r).get("rails") or {}).get("USB")
+    except (OSError, ValueError):
+        return None
+    return None if usb is None else bool(usb.get("on"))
+
+
+def set_owrx(action: str) -> dict:
+    """OpenWebRX as a chosen SDR application. Start claims the single tuner (ADS-B/hunt/listen are
+    then refused until it's stopped); stop releases it. Like readsb it never auto-starts, so only
+    this path brings it up."""
+    if action not in ("start", "stop"):
+        return {"ok": False, "error": "action must be start or stop"}
+    with _lock:
+        if action == "start":
+            if _busy["what"] in ("hunt", "listen", "scan", "adsb"):
+                return {"ok": False, "error": f"SDR is busy ({_busy['what']})"}
+            usb = _usb_rail_on()
+            if usb is None:
+                return {"ok": False, "error": "USB rail state unknown (aiov2 bridge not answering) "
+                        "— not starting the receiver"}
+            if usb:
+                return {"ok": False, "error": "USB rail is on — turn it off before starting the "
+                        "receiver (aiov2_ctl USB off)"}
+            if not _device_present():
+                return {"ok": False, "error": "SDR device not found — turn the SDR rail on first"}
+        _busy["what"] = "owrx" if action == "start" else None
+        _busy["info"] = None
+    r = _owrx(action)
+    if r.returncode != 0:
+        with _lock:
+            if _busy["what"] == "owrx" and action == "start":
+                _busy["what"] = None   # the container never came up; don't hold the tuner on paper
+        return {"ok": False, "error": f"docker compose {action} failed: {r.stderr.strip()[:160]}"}
+    return {"ok": True, "owrx_active": action == "start"}
+
+
 def _readsb(action):
     subprocess.run(["sudo", "-n", "systemctl", action, "readsb"],
                    capture_output=True, text=True, timeout=20)
@@ -135,14 +250,54 @@ def set_adsb(action: str) -> dict:
         return {"ok": False, "error": "action must be start or stop"}
     with _lock:
         if action == "start":
-            if _busy["what"] in ("hunt", "listen", "scan"):
-                return {"ok": False, "error": f"SDR is busy ({_busy['what']})"}
+            if _busy["what"] in ("hunt", "listen", "scan", "owrx") or _owrx_active():
+                return {"ok": False, "error": f"SDR is busy ({_busy['what'] or 'owrx'})"}
             if not _device_present():
                 return {"ok": False, "error": "SDR device not found — turn the SDR rail on first"}
         _busy["what"] = "adsb" if action == "start" else None
         _busy["info"] = None
     _readsb(action)
     return {"ok": True, "adsb_active": action == "start"}
+
+
+def _claim_stream(what: str, info: dict):
+    """Take the tuner for a listen or scan. Returns (gen, stop, done), or an error string when a
+    hunt or ADS-B holds it. A live listen/scan is told to stop, and this waits until its rtl_fm has
+    exited, since two rtl_fm can't open one dongle."""
+    with _lock:
+        if _busy["what"] in ("hunt", "adsb", "owrx") or _owrx_active():
+            return f"SDR is busy ({_busy['what'] or 'owrx'})"
+        prev = (_stream["stop"], _stream["done"]) if _busy["what"] in ("listen", "scan") else None
+        _stream["gen"] += 1
+        mine = (_stream["gen"], threading.Event(), threading.Event())
+        _stream["stop"], _stream["done"] = mine[1], mine[2]
+        _busy["what"], _busy["info"] = what, info
+    if prev:
+        prev[0].set()
+        # Usually well under a second. The long bound covers a scan caught in its seed sweep: one
+        # rtl_power run that can't be interrupted and holds the dongle until it finishes.
+        prev[1].wait(timeout=20)
+    return mine
+
+
+def _release_stream(gen: int, done: threading.Event) -> None:
+    """Called last by a listen/scan handler, after its processes are reaped. Frees the tuner only
+    if no newer stream has claimed it, then signals that this stream's rtl_fm is gone."""
+    with _lock:
+        if _stream["gen"] == gen:
+            _busy["what"] = _busy["info"] = None
+            _stream["stop"] = _stream["done"] = None
+    done.set()
+
+
+def _kill(procs) -> None:
+    for p in procs:
+        if p and p.poll() is None:
+            p.terminate()
+            try:
+                p.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                p.kill()
 
 
 def _device_present() -> bool:
@@ -156,9 +311,10 @@ def _run_hunt(band: str):
                                    capture_output=True, text=True).stdout.strip() == "active"
     try:
         if not _device_present():
-            _set_state("error", "SDR device not found — turn the SDR rail on first", [], band)
+            _set_state("error", "SDR device not found — turn the SDR rail on first", [], band, trace=None)
             return
-        _set_state("scanning", f"sweeping {band} ({cfg['lo']//10**6}–{cfg['hi']//10**6} MHz)", band=band)
+        # Clear the previous band's trace as the sweep starts, so the graph never shows stale bins.
+        _set_state("scanning", f"sweeping {band} ({cfg['lo']//10**6}–{cfg['hi']//10**6} MHz)", band=band, trace=None)
         if readsb_was_up:
             _readsb("stop")
             time.sleep(1.5)  # let readsb release the tuner
@@ -175,10 +331,10 @@ def _run_hunt(band: str):
             except OSError:
                 pass
         if not csv_text.strip():
-            _set_state("error", f"rtl_power produced no data ({r.stderr.strip()[:120]})", [], band)
+            _set_state("error", f"rtl_power produced no data ({r.stderr.strip()[:120]})", [], band, trace=None)
             return
         stations = parse_rtl_power(csv_text, cfg["snap"])
-        _set_state("done", f"{len(stations)} signal(s) found", stations, band)
+        _set_state("done", f"{len(stations)} signal(s) found", stations, band, trace=sweep_trace(csv_text))
     finally:
         # Leave the tuner free after the sweep — ADS-B is a chosen application now, not the default
         # owner, so we don't silently restart readsb. The operator re-selects it when they want it.
@@ -191,11 +347,11 @@ def start_hunt(band: str) -> dict:
     with _lock:
         if band not in BANDS:
             return {"ok": False, "error": f"band must be one of {sorted(BANDS)}"}
-        if _busy["what"]:
-            return {"ok": False, "error": f"SDR is busy ({_busy['what']})"}
+        if _busy["what"] or _owrx_active():
+            return {"ok": False, "error": f"SDR is busy ({_busy['what'] or 'owrx'})"}
         _busy["what"] = "hunt"
         _job["running"] = True
-        _set_state("starting", f"preparing {band} scan", [], band)
+        _set_state("starting", f"preparing {band} scan", [], band, trace=None)
         t = threading.Thread(target=_run_hunt, args=(band,), daemon=True)
         _job["thread"] = t
         t.start()
@@ -329,7 +485,7 @@ class Handler(BaseHTTPRequestHandler):
             with _lock:
                 running = _job["running"]
             self._json(200, {**_state, "running": running, "busy": _busy["what"],
-                             "adsb_active": _adsb_active()})
+                             "adsb_active": _adsb_active(), "owrx_active": _owrx_active()})
         elif path == "/listen":
             q = parse_qs(urlparse(self.path).query)
             scan_raw = q.get("scan", [""])[0].strip()
@@ -361,19 +517,19 @@ class Handler(BaseHTTPRequestHandler):
             self._json(400, {"ok": False, "error": "mode must be nfm/wbfm/am and freq in range"})
             return
 
-        with _lock:
-            if _busy["what"]:
-                self._json(409, {"ok": False, "error": f"SDR is busy ({_busy['what']})"})
-                return
-            _busy["what"] = "listen"
-            _busy["info"] = {"mode": mode, "freq": freq}
+        claim = _claim_stream("listen", {"mode": mode, "freq": freq})
+        if isinstance(claim, str):
+            self._json(409, {"ok": False, "error": claim})
+            return
+        gen, stop, done = claim
 
         rtl = ff = None
         readsb_was_up = False
         try:
+            if stop.is_set():  # a newer request took the tuner while this one waited for it
+                self._json(409, {"ok": False, "error": "superseded by a newer listen"})
+                return
             if not _device_present():
-                with _lock:
-                    _busy["what"] = None
                 self._json(409, {"ok": False, "error": "SDR device not found — turn the SDR rail on first"})
                 return
             readsb_was_up = subprocess.run(["sudo", "-n", "systemctl", "is-active", "readsb"],
@@ -388,6 +544,8 @@ class Handler(BaseHTTPRequestHandler):
                  "-ac", "1", "-i", "pipe:0", "-f", "mp3", "-b:a", "64k", "pipe:1"],
                 stdin=rtl.stdout, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
             rtl.stdout.close()  # let rtl_fm see SIGPIPE if ffmpeg goes away
+            # Preempted: end the pipeline, which ends the read loop below.
+            threading.Thread(target=lambda: (stop.wait(), _kill((ff, rtl))), daemon=True).start()
 
             self.send_response(200)
             self.send_header("Content-Type", "audio/mpeg")
@@ -403,35 +561,27 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:  # noqa: BLE001
             pass
         finally:
-            for p in (ff, rtl):
-                if p and p.poll() is None:
-                    p.terminate()
-                    try:
-                        p.wait(timeout=3)
-                    except subprocess.TimeoutExpired:
-                        p.kill()
+            _kill((ff, rtl))
             # Tuner is released, not handed back to ADS-B — the operator picks the next app.
-            with _lock:
-                _busy["what"] = None
-                _busy["info"] = None
+            _release_stream(gen, done)
 
     def _handle_scan(self, scan_raw, squelch):
         """Airband scanner: cycle channels, pause on traffic, and publish the active frequency via
         /scan/status. scan_raw is 'airband' (sweep to seed the channel list) or a comma list of Hz.
         A bridge-driven hop (see _scan_controller) feeds a persistent ffmpeg encoder, streamed to
         the browser <audio> as MP3. Receive-only; brackets readsb (stops it, doesn't restart)."""
-        with _lock:
-            if _busy["what"]:
-                self._json(409, {"ok": False, "error": f"SDR is busy ({_busy['what']})"})
-                return
-            _busy["what"] = "scan"
-            _busy["info"] = {"squelch": squelch}
+        claim = _claim_stream("scan", {"squelch": squelch})
+        if isinstance(claim, str):
+            self._json(409, {"ok": False, "error": claim})
+            return
+        gen, stop, done = claim
 
         ff = None
-        stop = threading.Event()
         ctrl = None
-        claimed = True
         try:
+            if stop.is_set():  # a newer request took the tuner while this one waited for it
+                self._json(409, {"ok": False, "error": "superseded by a newer listen"})
+                return
             if not _device_present():
                 self._json(409, {"ok": False, "error": "SDR device not found — turn the SDR rail on first"})
                 return
@@ -444,6 +594,9 @@ class Handler(BaseHTTPRequestHandler):
                 freqs = _sweep_airband()
             else:
                 freqs = _parse_scan_freqs(scan_raw)
+            if stop.is_set():
+                self._json(409, {"ok": False, "error": "superseded by a newer listen"})
+                return
             if not freqs:
                 self._json(409, {"ok": False, "error": "no airband activity found — try again or widen squelch"})
                 return
@@ -479,14 +632,14 @@ class Handler(BaseHTTPRequestHandler):
                     ff.wait(timeout=3)
                 except subprocess.TimeoutExpired:
                     ff.kill()
-            _scan_set(stage="idle", active=None, channels=[])
-            if claimed:
-                with _lock:
-                    _busy["what"] = None
-                    _busy["info"] = None
+            with _lock:
+                current = _stream["gen"] == gen
+            if current:  # a scan that took over keeps its own status
+                _scan_set(stage="idle", active=None, channels=[])
+            _release_stream(gen, done)
 
     def do_POST(self):
-        if self.path not in ("/hunt", "/adsb"):
+        if self.path not in ("/hunt", "/adsb", "/owrx"):
             self._json(404, {"ok": False, "error": "not found"})
             return
         try:
@@ -498,6 +651,12 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/adsb":
             result = set_adsb(str(req.get("action", "")).lower())
             self._json(200 if result.get("ok") else 409 if "busy" in result.get("error", "") else 400,
+                       result)
+            return
+        if self.path == "/owrx":
+            result = set_owrx(str(req.get("action", "")).lower())
+            err = result.get("error", "")
+            self._json(200 if result.get("ok") else 409 if "busy" in err or "USB rail" in err else 400,
                        result)
             return
         result = start_hunt(str(req.get("band", "")).lower())

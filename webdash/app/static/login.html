@@ -9,12 +9,12 @@
   <form class="auth" method="post" action="/login">
     <h1>Fancy Dashboard</h1>
     <p class="tagline">named for The Fancy, Henry Every's frigate, 1695</p>
-    <label>Username</label>
-    <input name="username" autocomplete="username" required autofocus />
-    <label>Password</label>
-    <input type="password" name="password" autocomplete="current-password" required />
-    <label>TOTP code</label>
-    <input name="totp_code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required />
+    <label for="username">Username</label>
+    <input id="username" name="username" autocomplete="username" required autofocus />
+    <label for="password">Password</label>
+    <input id="password" type="password" name="password" autocomplete="current-password" required />
+    <label for="totp_code">TOTP code</label>
+    <input id="totp_code" name="totp_code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required />
     <button type="submit">Log in</button>
     {% if error %}<div class="error">{{ error }}</div>{% endif %}
   </form>

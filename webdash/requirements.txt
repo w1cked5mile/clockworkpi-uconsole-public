@@ -8,3 +8,4 @@ pyotp==2.9.0
 segno==1.6.1
 itsdangerous==2.2.0
 python-multipart==0.0.20
+fpdf2==2.8.1

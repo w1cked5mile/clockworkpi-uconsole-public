@@ -1,0 +1,46 @@
+# OpenWebRX — web-native SDR receiver for the uConsole AIO V2 RTL-SDR (receive-only).
+#
+# Runs on the HOST as its own container (NOT in the webdash image, which has no /dev access). It
+# owns the single RTL-SDR continuously while running, so it is one more mutually-exclusive SDR
+# application alongside ADS-B (readsb), the band hunt, and listen — the webdash host bridge
+# (host-helpers/sdr-bridge.py) arbitrates the tuner, starting/stopping this container on demand.
+#
+# restart: "no" on purpose — like readsb, this must NOT auto-start at boot and seize the tuner. The
+# bridge starts it when the operator picks the Receiver tab, and stops it to hand the tuner back.
+#
+# Bound to 127.0.0.1 only; the tailnet reaches it through `tailscale serve --https=8073`
+# (see software/openwebrx.md), the same posture as Kismet. OpenWebRX has its own admin login, set
+# once on first run with `openwebrx admin adduser` — that password lives in the named volume below,
+# off-repo and off-image, never committed.
+#
+# Start/stop/status:
+#   docker compose -f configs/openwebrx/docker-compose.yml up -d
+#   docker compose -f configs/openwebrx/docker-compose.yml stop
+#   docker compose -f configs/openwebrx/docker-compose.yml ps
+#
+# Verify: `docker ps --filter name=openwebrx` shows it Up, `curl -s -o /dev/null -w '%{http_code}'
+#   http://127.0.0.1:8073/` returns 200, and `docker logs openwebrx` shows no "out of range" lines.
+# Rollback: `docker compose -f configs/openwebrx/docker-compose.yml down` stops and removes the
+#   container; `docker volume rm openwebrx_openwebrx-settings` also discards the settings/admin
+#   volume to restore a clean slate. The tuner is released as soon as the container stops.
+
+services:
+  openwebrx:
+    image: jketterl/openwebrx:stable
+    container_name: openwebrx
+    restart: "no"
+    # The DVB-T driver is blacklisted on the host (configs/modprobe.d/blacklist-rtl-dvb.conf), so
+    # the RTL-SDR is free for the container to claim through raw USB.
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
+    ports:
+      - "127.0.0.1:8073:8073"
+    volumes:
+      # Persistent settings + SDR profiles + the admin user database (the password hash lives here,
+      # outside the repo and the image).
+      - openwebrx-settings:/var/lib/openwebrx
+    tmpfs:
+      - /tmp/openwebrx
+
+volumes:
+  openwebrx-settings:

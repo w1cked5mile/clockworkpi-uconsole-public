@@ -110,16 +110,22 @@ three clocks:
 | Clock | Source | Survives power loss? |
 |---|---|---|
 | System clock | NTP when online; otherwise whatever it booted with | no |
-| RTC (real-time clock chip, PCF85063A) | set from the system clock by `aiov2_ctl --sync-rtc` | **only with a backup cell — none is fitted** (a known gap on this build) |
+| RTC (real-time clock chip, PCF85063A) | set from the system clock by `aiov2_ctl --sync-rtc` | **only with a backup cell** (fitted on this build 2026-10-10; none before) |
 | GNSS | the satellites | n/a — needs a fix |
 
 NTP (network time protocol) sets the system clock from the internet when Fancy is online.
-Without the RTC cell, an offline cold boot starts with a wrong system clock. That breaks TOTP
-logins (the six-digit codes depend on the time) and mislabels timestamps. It does **not** slow
-the GPS fix: gpsd doesn't pass the system time to the receiver. A slow first fix after full power
-removal comes from the receiver losing its own stored ephemeris (whether the GP-02 has its own
-backup supply is *unverified*). Whether GNSS time is fed into the system clock (chrony's shared
-memory source) on this build is *unverified* — check with `chronyc sources`.
+Without an RTC cell, an offline cold boot starts with a wrong system clock. That breaks TOTP
+logins (the six-digit codes depend on the time) and mislabels timestamps. Fancy had this gap until
+the cell was fitted 2026-10-10. On the next boot the kernel set the system clock from the RTC
+(`rtc-pcf85063 … setting system clock`, no `Power loss detected`), so an offline boot now starts
+with the time it had at power-off, plus however far the RTC drifted. Fancy's RTC drift rate is
+*unmeasured*; compare `timedatectl` RTC time with UTC after a long offline period.
+
+The RTC cell does **not** speed up the GPS fix: gpsd doesn't pass the system time to the
+receiver. A slow first fix after full power removal comes from the receiver losing its own stored
+ephemeris (whether the GP-02 has its own backup supply is *unverified*). Whether GNSS time is fed
+into the system clock (chrony's shared memory source) on this build is *unverified* — check with
+`chronyc sources`.
 
 ## On this build
 

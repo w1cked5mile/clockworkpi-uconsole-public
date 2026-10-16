@@ -59,7 +59,7 @@ items:
       - "The system clock is wrong: TOTP logins fail and timestamps are off"
       - "The GPS can't be used at all"
     answer: 1
-    explanation: The RTC needs the cell to keep time without power. A slow first fix is a separate matter — the receiver losing its own stored orbits.
+    explanation: The RTC needs the cell to keep time without power. Fancy has had one fitted since 2026-10-10 (a CR1220); before that, this was the real failure. A slow first fix is a separate matter — the receiver losing its own stored orbits.
 ---
 
 Five of six to pass.

@@ -13,13 +13,13 @@ sources:
   - docs/reference/power-budget.md
 objectives:
   - "**Compose** a power budget for a live field session from the measured idle floor plus per-rail deltas, and **predict** the runtime on the pack."
-  - "**Design** a ~2 h battery session running GPS, mesh, ADS-B and a Wi-Fi survey together, within the pack's real runtime and the 3.5 V abort line."
+  - "**Design** a ~2 h battery session running GPS, mesh, ADS-B and a Wi-Fi survey together, within the pack's real runtime and the voltage floor (plug in by 3.60 V, shut down by 3.55 V)."
   - "**Compare** the measured mean draw against your composed estimate, and **account** for the difference."
   - "**Reflect** against a rubric: what the budget predicted, what the session measured, and what you would change."
 est_minutes: 180
 today:
-  state: blocked
-  reason: "POWER-GATED on real hardware. The capstone runs ~2 h on battery with everything live, so it must not run until the battery path is verified: the interim 18650 pair in service is unverified (wrapped 9900mAh, no provenance, not capacity-tested), JP1 is open, and the Meshnology LiPo is not fitted. Per the build state, the lab stays gated until EITHER the fitted pack is capacity-tested OR the Meshnology pack is fitted with JP1 soldered closed. The lessons (composing a power budget, designing the session) can be read and worked now; LAB-20's battery run waits on that gate. Prerequisites: M3, M4, M6, M7."
+  state: ready
+  reason: "The power gate is met: the Meshnology LiPo pair is fitted with JP1 soldered closed (2026-10-11) and was discharge-tested on 2026-10-13 (52.2 Wh delivered before a hard cut at ≈3.53 V). Run the capstone on battery, but mind the measured floor — the device cuts power with no warning at ≈3.53 V under load, so plug in by 3.60 V and shut down by 3.55 V, not 3.5 V. Prerequisites: M3, M4, M6, M7."
 ---
 
 The capstone pulls the whole platform together: GPS, the mesh, ADS-B and a Wi-Fi survey all running at
@@ -28,14 +28,14 @@ any one radio (you learned those in M3, M4, M6 and M7) but **budgeting and runni
 whole**: composing a power budget from the measured idle floor and per-rail deltas, predicting how long
 the pack will last, then running the session and comparing what you measured against what you predicted.
 
-A word on why this module is gated. It is the one exercise that deliberately runs Fancy hard on battery
-for a sustained period, so it carries a power-safety gate: it does not run until the battery path is
-verified — the fitted pack capacity-tested, or the Meshnology LiPo fitted with JP1 soldered closed. As
-of the current build state the interim 18650 pair is unverified and JP1 is open, so **the lab is blocked
-on purpose.** The planning half — composing the budget and designing the session — you can do now; the
-battery run waits on that hardware work, which is the honest state of the device, not a limitation of
-the lesson.
+A word on this module's power-safety gate. It is the one exercise that deliberately runs Fancy hard on
+battery for a sustained period, so it does not run until the battery path is verified — the fitted pack
+capacity-tested, or the Meshnology LiPo fitted with JP1 soldered closed. **That gate is now met:** the
+Meshnology pair was fitted with JP1 closed (2026-10-11) and discharge-tested (2026-10-13, 52.2 Wh to a
+hard cut at ≈3.53 V). The one thing that test added to the safety picture: the device cuts power with no
+warning at ≈3.53 V under load, and the fuel-gauge % is wrong on this pack — so run on **voltage**, plug
+in by 3.60 V, and shut down by 3.55 V.
 
 It draws on `docs/reference/power-budget.md`, the build's measured power numbers, and ends (LAB-20)
 with the shakedown itself: a ~2 h battery session with all four stations live, mean draw recorded and
-compared to the estimate, aborting at 3.5 V.
+compared to the estimate, shutting down by 3.55 V (plug in by 3.60 V).

@@ -180,6 +180,110 @@ the repo's aircrack posture (own gear or documented authorization; see
 Installing the host pieces and running a live capture or crack are owner-authorized steps, separate
 from deploying the app.
 
+## Wi-Fi survey (Claude-assisted)
+
+Added 2026-10-08. A site-survey workflow layered on the **passive** Kismet collector — distinct
+from the WPA audit above, which is the one active capability. The survey transmits nothing: it
+reads what Kismet has already heard and bundles it with position. It lives in [`app/survey/`](../../webdash/app/survey/)
+(`store.py`, `snapshot.py`, `analysis.py`, `report.py`) and a Wi-Fi-view panel
+([`app/static/js/survey.js`](../../webdash/app/static/js/survey.js)).
+
+| Piece | What it does |
+|---|---|
+| Start/stop | `POST /api/survey/start` opens a named session (one active at a time); `POST /api/survey/stop` closes it. State in the data dir, `survey-state.json` + `surveys/<id>.json`. |
+| Waypoint | `POST /api/survey/waypoint` captures a Kismet device snapshot (`snapshot.py` → Kismet REST `devices/views/all/devices.json`, field-simplified) **and** the current GPS grid/fix (`gps.collect()`), tagged with an operator label. `…/undo` drops the last one. If Kismet is down the waypoint is still recorded with the error, so position isn't lost. |
+| Analysis | `GET /api/survey/{id}` runs `analysis.py`: dedup APs across waypoints (strongest signal + coverage footprint), band/channel/security breakdowns, per-waypoint coverage, and rule-derived findings (open/WEP/legacy-WPA networks, 2.4 GHz channel hygiene, marginal/dead coverage, failed captures). Deterministic — only what was observed, nothing estimated. |
+| Reports | `GET /api/survey/{id}/report?kind=&fmt=` renders `comprehensive` (full technical write-up + AP inventory), `executive` (one-page leadership summary, BSSIDs reduced to OUI), or `brief` (a paste-ready prompt for a Claude narrative pass). `fmt=md` (default) serves Markdown; `fmt=pdf` serves a formatted PDF for the two documents (`brief` is a prompt, Markdown only). PDF is built directly from the analysis dict with **fpdf2** (`pdf.py`) — a pure-Python generator, no native/system deps, so the slim image stays slim; reportlab was rejected for pulling pillow. fpdf2's core fonts are latin-1, so a non-latin-1 SSID (CJK/emoji) renders as `?` — an embedded TTF is the follow-up if that ever matters. |
+
+**"Claude-assisted," kept honest.** The CM4 runs no LLM and this app holds no API key; the reports
+are generated on-device by `report.py`. The *assistance* is twofold: the analysis/report engine was
+authored with Claude, and the `brief` export is the structured hand-off for an operator who wants a
+narrative or client-specific rewrite from Claude (claude.ai or a Claude Code session). The on-device
+reports stand alone offline; the brief is the optional online step.
+
+**Legal posture.** Receive-only, inside the repo's [posture](../../knowledge/README.md): the survey
+observes, it does not associate, deauthenticate, or decrypt. Findings are survey *facts* (an SSID is
+open; a channel is crowded), not intrusion guidance. Survey data carries SSIDs/BSSIDs, so it sits
+behind the same boundary as the WPA allowlist and captures — the read-write data dir, outside git —
+and reports are shown in the authenticated UI and downloaded, never written anywhere that reaches
+the repo. Positions are Maidenhead grid squares plus operator labels, never precise coordinates.
+
+**Verified on hardware, 2026-10-08.** Deployed to the live container and walked a three-waypoint
+test survey against a running Kismet hearing ~180 devices: `snapshot.capture()` returned 52 unique
+APs with `mac`/`type`/`frequency`/`signal`/`manuf` fully populated and `channel`/`crypt` populated
+where Kismet had settled them, and the analysis/reports rendered correctly (band split, WPA2/Open
+breakdown, hidden-SSID count, per-waypoint footprint). One bring-up fix: the SSID string is read
+from `dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.ssid`, **not** the deprecated flat
+`dot11.device.last_beaconed_ssid` (which returns integer `0` when empty); `commonname` is dropped
+when it merely echoes the MAC, so a hidden AP is not shown as "named" after its own address. GPS
+recorded `fix: none` indoors and the waypoint was still captured, as designed. Store, analysis and
+report logic are covered by [`webdash/tests/test_survey.py`](../../webdash/tests/test_survey.py)
+(14 tests, fabricated snapshots); the snapshot→Kismet path is now confirmed live.
+
+### SSID-focused mode — signal, channel, overlap, contention (per AP, per waypoint)
+
+Added 2026-10-08, designed with the `senior-rf-engineer` agent. The survey can narrow to **one
+SSID** — an ESS that is usually served by many BSSIDs across 2.4/5/6 GHz — and report, for each of
+its BSSIDs at each waypoint: signal (last/min/max), channel + width, channel overlap, and
+contention. Modules: `rf.py` (pure channel-geometry math), the enriched `snapshot.py` fields,
+`analysis.list_ssids()` / `analysis.focus_analysis()`, `sitemap.py`, and `report.focus_markdown()`
+/ `pdf.focus_pdf()`. Routes: `GET …/ssids`, `GET …/focus?ssid=&mode=`, and `…/report?kind=focus&ssid=`.
+
+**Kismet fields used** (confirmed live on this build 2026-10-08, from the beacon's last-SSID
+record): `ht_mode` (channel width — "HT80" etc.), `ht_center_1` (block center, **MHz**),
+`dot11e_channel_utilization_perc` (AP-reported QBSS channel utilization, a ready-made percent),
+`dot11e_qbss_stations`, `num_associated_clients`, `min_signal`, `dot11r_mobility_domain_id`
+(ties an ESS's APs together), `maxrate`, `packets.total`.
+
+**Metrics, kept RF-honest** (the design's core caveats, carried into every focused report):
+- **Overlap is classified by primary channel**, because 802.11 CCA/CSMA arbitrates on the primary
+  20 MHz: **co-channel** (same primary) APs *defer* to each other — shared airtime, not corruption;
+  **adjacent** (spectral overlap on a *different* primary) is the harmful case — they often can't
+  decode each other, so they collide. The survey-wide 2.4 GHz finding was reworded to this (it used
+  to just flag "off 1/6/11"). Width comes from the beacon's HT/VHT/HE element, not measured across
+  the bonded block (and the MT7921 is 80 MHz-capable anyway).
+- **Contention** uses the AP's own **QBSS/BSS-Load** utilization and station count (read from one
+  beacon, so no channel dwell needed) plus observed client count (a **lower bound**). We do **not**
+  compute airtime/utilization from our own packet counts — a channel-hopping radio under-samples
+  and cannot integrate busy-time. BSSID and client counts are lower bounds for the same reason.
+- **No SNR**: the mt76 path reports noise as 0 (placeholder, confirmed), so signal is uncalibrated
+  relative RSSI and no SNR is shown.
+- **Self co-channel**: two of the target ESS's *own* APs co-channel at a waypoint is surfaced
+  explicitly — the single most actionable focused finding (seen live: BBIWIN, a 12-BSSID ESS, had
+  4 self co-channel pairs on ch 1/6/11/161).
+
+**GPS + site map.** Each waypoint now stores the precise fix (lat/lon, satellites, HDOP) when GPS
+has one — survey data lives in the data dir, outside git, so the operator tool may hold a precise
+fix (the committed-doc grid-square rule is unchanged). Reports show per-waypoint GPS. `sitemap.py`
+renders a positional waypoint map (SVG in the UI, drawn natively in the PDF) coloured by signal
+**when ≥2 waypoints carry coordinates**; indoors with no fix it falls back to a note (an
+operator-supplied floor-plan backdrop is a noted follow-up).
+
+**Focused report enhancements (2026-10-08, from a second RF review of a real 7-waypoint walk).**
+The focused report leads with a rule-derived **findings** block (`analysis._focus_findings()`,
+thresholds as module constants): coverage gaps, 5 GHz-fallback risk, self co-channel contention,
+external adjacent-channel interferers, load concentration, airtime pressure, and failed/duplicate
+waypoints. Two correctness fixes the review caught in Kismet's own fields: `min_signal`/`max_signal`
+and `num_associated_clients` are **whole-capture cumulative**, not per-waypoint — they are now shown
+once per BSSID in the roaming footprint (lifetime range, cumulative clients), never per waypoint;
+the per-waypoint view shows last-signal RSSI and the **instantaneous** QBSS station/utilization
+reads. Self co-channel is **gated**: a same-channel sibling pair is only "contention" at waypoints
+where *both* siblings are ≥ −70 dBm (mutually strong) — otherwise it is healthy frequency reuse,
+not a problem (this stopped a ~6:1 over-report). Co-channel figures are shown as BSSID count **and**
+a distinct-physical-radio estimate (virtual BSSIDs grouped by the lower 5 MAC octets), since one
+enterprise radio broadcasts many SSIDs. A per-band "best server per waypoint" table shows the
+dual-band roaming candidate set. Validated on the owner's Microban guest walk (12-BSSID ESS):
+strong coverage at all 6 good points, ch1/ch6 self-contention only in the office area, a 40 MHz ch4
+neighbour overlapping the guest ch6, and ~32 stations concentrated on one breakroom 5 GHz radio.
+
+**Focused *capture* mode (channel-lock) is a documented follow-up, not built.** The RF review
+recommends an optional per-waypoint mode that restricts the radio's hop set to the target ESS's
+channels (receive-only, within posture — it only tunes our own radio) for better dwell/sampling. It
+needs the Kismet `set_channel` datasource endpoint confirmed on device and deliberately changes the
+single shared radio's behaviour, so it is tracked in [`../../TODO.md`](../../TODO.md) rather than
+shipped here. Verified live 2026-10-08: focus over a real 12-BSSID ESS with QBSS utilization and
+client counts; all other analysis is a filter over the same passive snapshot.
+
 ## Mesh text messaging
 
 Added 2026-09-23. It follows [CyberDeck](https://github.com/w1cked5mile/CyberDeck)'s `MeshClient`
@@ -203,6 +307,38 @@ Limits, stated rather than implied:
   one.
 - Message text and sender names come from anyone on the channel. The page inserts them with
   `textContent` only, never `innerHTML`.
+
+### Sender place
+
+Added 2026-10-09, lost from the running container by later rebuilds (the branch was never merged),
+and ported onto the phase 1 message log 2026-10-11. Each received message's header shows roughly
+where the sender is, after the channel name: `14:02 · KD4X · SCMesh · ~18 km from Albany, GA · SNR 6.5 dB`.
+
+| Piece | What it does |
+|---|---|
+| Source | The sender's last position in meshtasticd's NodeDB (`iface.nodes[id]["position"]`), from their own position broadcasts |
+| Lookup | `app/places.py`: nearest place in GeoNames `cities500` (populated places of 500+, villages included), indexed in 1° cells, searched ring by ring outward |
+| Data | `places.tsv` in `WEBDASH_DATA_DIR`, built on the host by `host-helpers/places-build.py`; outside git |
+| Label | `near X` within 5 km, `~N km from X` beyond, `(pos 3d old)` when the position is over 24 h old; nothing within roughly 4 cells (several hundred km) gives no label |
+| Timing | Looked up when the text arrives; if the sender has no position yet, retried on each 15 s collect for up to 1 h, then left blank (a later position would say where they went next) |
+| Page | The log only ever appends rows, so a place that arrives later rewrites that row's header in place, as delivery tiers do; under `aria-relevant="additions"` the edit is not announced |
+
+Decisions behind it:
+
+- **Offline, never an online geocoder.** Sending other people's coordinates to a third party
+  would be a privacy leak, and the device is often off-network in the field.
+- **Only the label leaves the server.** `mesh.py` turns the position into a place name and the
+  message carries only that, so other people's latitude/longitude never reaches the browser
+  or any log. The page inserts it with `textContent` like the rest of the header.
+- **Coarse by design.** The label can be no more precise than the sender's own broadcast; a
+  sender with reduced `position_precision` resolves to a nearby town, not their street.
+- **Loads on its own thread.** The 236k-place list takes 1.4 s and ~48 MB to load on the CM4
+  (measured 2026-10-09), so it loads once in the background and lookups (≤6 ms) skip until it's
+  ready. No `places.tsv` means the feature is simply off.
+
+Unverified: a label on a real received message. The lookup is unit-tested and was checked
+against public reference points with the real list, but no position-bearing node had sent text
+when this landed.
 
 ## Other apps: proxied vs. linked
 

@@ -25,8 +25,9 @@ def latest_status() -> dict | None:
 
 
 def clock_ok() -> bool | None:
-    """No RTC cell is fitted, so after an offline cold boot the system clock can be wrong. Trust it
-    when gpsd's latest fix timestamp agrees with it; None when there's no fix to compare."""
+    """After an offline cold boot the system clock is only as good as the RTC (cell fitted
+    2026-10-10; a flat cell or drift can still leave it wrong). Trust it when gpsd's latest fix
+    timestamp agrees with it; None when there's no fix to compare."""
     age = ((latest_status() or {}).get("gps") or {}).get("tpv_age_s")
     return None if age is None else abs(age) < 5
 

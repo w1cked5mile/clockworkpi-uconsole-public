@@ -33,7 +33,7 @@ steps:
     timeout_s: 300
 safety_stops:
   - {type: status, path: system.temp_c, op: gte, value: 78}
-  - {type: status, path: aiov2.power_num.voltage_v, op: lte, value: 3.5}
+  - {type: status, path: aiov2.power_num.voltage_v, op: lte, value: 3.6}
 restore:
   - {type: status, path: system.load.1m, op: lte, value: 1.5}
 evidence: [system.temp_c]

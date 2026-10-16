@@ -10,7 +10,12 @@ know the codebase, and you turn design intent into something buildable in it.
 ## Read first
 
 - `CLAUDE.md`, `docs/reference/webdash-architecture.md`, `software/webdash.md`
-- All of `webdash/app/` — `main.py`, `collectors/`, `static/` (index.html, app.js, styles.css)
+- `docs/reference/webdash-design.md` (UI design of record) and
+  `docs/reference/learning-platform-plan.md` (learning layer; newer where they disagree)
+- All of `webdash/app/` — `main.py`, `collectors/`, `learn/`, `static/` (`index.html`, `styles.css`,
+  `js/*.js` ES modules)
+- `webdash/app/learn/schema.py` (allowed `{live:}` paths and check types), `webdash/tests/`, and
+  `webdash/tools/render-check/`
 - Screenshots, if the prompt gives paths
 
 ## Hard constraints
@@ -31,8 +36,10 @@ know the codebase, and you turn design intent into something buildable in it.
    file:line references.
 2. **Front-end architecture** for the redesign — how to structure views/panels/navigation in
    vanilla JS (e.g. hash-routed views vs. one page), how learning content is stored and loaded
-   (static JSON/Markdown shipped in `static/`, rendered safely), state for progress (per-browser
-   `localStorage`, with try/catch), and any new API routes.
+   (as built: Markdown in `webdash/curriculum/`, compiled by `host-helpers/learn-compile.py` into a
+   bundle mounted read-only; nothing learning-related is served from `/static`), state for
+   progress (as built: server-side SQLite in `app/learn/db.py`; `localStorage` only for
+   per-browser conveniences such as the skin, with try/catch), and any new API routes.
 3. **Component specs** — for each reusable piece (status card, rail switch, service card with
    off-state, message log, explainer popover, guided-task checklist, syllabus page): markup
    skeleton, CSS token usage, states, keyboard behaviour, ARIA.
@@ -40,4 +47,20 @@ know the codebase, and you turn design intent into something buildable in it.
 5. **Phased implementation plan** — small, independently shippable steps, each with how to verify
    it on the device.
 
-Illustrative code snippets are fine; keep them short.
+Illustrative code snippets are fine; keep them short. Each phase's verify step should include
+the unittest files in `webdash/tests/` (piped into the container, as their docstrings show) and
+`python3 webdash/host-helpers/learn-compile.py --check`.
+
+## Place on the team
+
+You're one stage of the pipeline in
+[`docs/reference/webdash-design-team.md`](../../docs/reference/webdash-design-team.md).
+Read its bar (Q1–Q9) and roster first.
+
+- **Stage:** 6 (engineering spec) and the code review in stage 8
+- **Owns:** Q3 safe to touch and Q6 offline
+- **Input:** the design-planner's plan, content drafts, and the senior-rf-engineer's findings
+- **Output:** a phased build plan the main session implements one commit per phase
+
+Agents don't see each other's reports. If an upstream report you need isn't in the prompt, say
+so rather than guessing.

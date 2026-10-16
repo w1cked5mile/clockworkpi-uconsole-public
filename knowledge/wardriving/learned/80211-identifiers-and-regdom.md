@@ -129,8 +129,8 @@ As channels:
 `PASSIVE-SCAN` means the radio may not send probe requests there until it has heard an AP.
 `NO-OUTDOOR` restricts transmitters. Neither restricts a monitor interface, which only listens.
 
-On this build: the RT5370 is **2.4 GHz only**, so channels 1–11 are all Fancy can survey today.
-5 and 6 GHz need the AC1200, whose monitor mode and 6 GHz support are *unverified* (not arrived).
+On this build: the survey adapter is the AC1200 (`wlan1`, MT7921), whose monitor mode covers
+2.4, 5 and 6 GHz (verified 2026-09-30). The 2.4 GHz-only RT5370 was removed the same day.
 
 ## DFS
 

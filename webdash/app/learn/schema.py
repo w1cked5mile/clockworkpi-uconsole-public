@@ -74,7 +74,10 @@ MESSAGE_FIELDS = frozenset(["mine", "direct", "snr", "rssi", "channel"])
 
 LAB_MODES = frozenset(["observe", "guided", "offline", "sandbox"])
 TODAY_STATES = frozenset(["ready", "degraded", "blocked"])
-STATIONS = frozenset(["mesh", "gps", "sdr", "wifi", "power", "system"])
+# A module's "station:" is the dashboard route its "Open the … station" link goes to. Redesign
+# phase 2 (2026-10-11) split the Wi-Fi view and tabbed the SDR view, so a module can name the tool.
+STATIONS = frozenset(["mesh", "gps", "sdr", "wifi", "power", "system",
+                      "sdr/adsb", "sdr/hunt", "sdr/listen", "survey", "capture", "wpa"])
 ITEM_TYPES = frozenset(["single", "multi", "numeric"])  # "order" returns when the browser can answer it
 DISCIPLINES = frozenset(
     ["rf-fundamentals", "sdr", "mesh-networks", "wardriving", "aerospace", "communications",

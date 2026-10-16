@@ -80,8 +80,8 @@ timestamps. gpsd already has GPS time; it just needed a disciplinarian that can 
 **Verified root cause of the bad offline clock.** The board *does* carry a PCF85063A RTC with a
 CR1220 backup (`../configs/boot/config-cm4.txt`), and `/dev/rtc0` is the `rtc-pcf85063` device — but
 the kernel logs `rtc rtc0: Power loss detected, invalid time` at boot (`dmesg | grep rtc`, confirmed
-2026-10-02). The backup cell is dead or unseated, so the RTC boots with no valid time. Replacing the
-CR1220 is the hardware fix for *warm* GPS starts (see the fix-expectations table); until then, and
+2026-10-02). The holder was in fact empty (2026-09-23), so the RTC booted with no valid time. **A cell was
+fitted 2026-10-10** and the next boot set the clock from the RTC. Fitting it was the hardware fix for *warm* GPS starts (see the fix-expectations table); until then, and
 whenever truly offline, GPS is what sets the clock.
 
 The image default, **systemd-timesyncd, cannot do this** — it is an SNTP *client* only and cannot

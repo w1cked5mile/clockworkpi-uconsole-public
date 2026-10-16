@@ -13,9 +13,10 @@ export function syncRails(a) {
   for (const btn of document.querySelectorAll(".rail-switch")) {
     const f = btn.dataset.feature;
     if (!known || !a.rails[f]) {
-      // Bridge unavailable: the rail's state is unknown, so the switch can't honestly show one.
+      // Bridge unavailable: the rail's true state is unknown. Disable and title the switch, but
+      // keep a valid aria-checked — role="switch" requires one, and removing it makes the control
+      // announce as a plain button with no state. It keeps its last-known / markup-default value.
       btn.disabled = true;
-      btn.removeAttribute("aria-checked");
       btn.title = "aiov2 bridge unavailable";
       continue;
     }
@@ -66,7 +67,7 @@ async function toggleRail(feature, desired) {
     if (errEl) errEl.textContent = msg;
     // The tile the operator used may not be the Power view — surface it next to the switch too.
     for (const b of switchesFor(feature)) {
-      const local = b.closest(".tile, .panel")?.querySelector(".switch-error");
+      const local = b.closest(".tile, .panel, .view-head")?.querySelector(".switch-error");
       if (local) local.textContent = msg;
     }
   }

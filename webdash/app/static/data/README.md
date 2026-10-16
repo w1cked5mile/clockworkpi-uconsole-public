@@ -17,5 +17,7 @@ the device's GPS fix (see `app/static/js/sdr.js`, `bestNwr`).
   Transmitter sites change rarely; treat this as a point-in-time snapshot.
 - **Selection ≠ nearest.** The picker ranks by `power / distance²` (a free-space received-power
   proxy), not raw distance — a closer low-power site can be weaker than a farther high-power one.
-  Confirmed on-air at grid FM03: 162.400 (KEC95, Aynor SC, 1000 W, 40 km) beats 162.500 (WNG628,
-  Georgetown SC, 300 W, 33 km), which measured at the noise floor.
+  Confirmed on-air 2026-10-03 with Fancy at grid FM03 (its own GPS fix that day; the device travels,
+  and other fixes, such as EM94 on 2026-10-04, are elsewhere): 162.400 (KEC95, Aynor SC, 1000 W,
+  40 km) beats 162.500 (WNG628, Georgetown SC, 300 W, 33 km), which measured at the noise floor. See
+  `docs/logs/build-log.md`, 2026-10-03.

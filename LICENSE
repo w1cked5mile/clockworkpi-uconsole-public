@@ -20,7 +20,7 @@ was changed.
    Full text: LICENSES/MIT.txt
 
    Covers webdash/ (application code, static assets, Dockerfile, compose and requirements files),
-   .claude/hooks/, .claude/scripts/, .claude/skills/**/scripts/, and the files in configs/ other
+   .claude/hooks/, .claude/scripts/, .claude/skills/**/scripts/, hardware/stl/*.py, and the files in configs/ other
    than those listed under 3. The MIT licence's acknowledgement condition is that the copyright
    notice and licence text are kept in all copies or substantial portions.
 
@@ -28,6 +28,15 @@ was changed.
    - configs/udev/99-kismet-nrf51822.rules, 99-kismet-nrf52840.rules, 99-kismet-nxp-kw41z.rules
      are modified copies of rules shipped by the Kismet project and remain under Kismet's licence
      (GPL-2.0; see https://www.kismetwireless.net/).
+   - .claude/skills/diagnosing-bugs/, tdd/, grilling/ and writing-for-agents/ are modified copies
+     of skills from https://github.com/mattpocock/skills, MIT licence, Copyright (c) 2026 Matt
+     Pocock; the notice is kept in .claude/skills/LICENSE.mattpocock-skills.
+   - hardware/stl/uconsole-3d-models-stp-format-gpl-v3.stp, clockworkpi-uconsole.3mf and the
+     ClockworkPi parts in clockworkpi-uconsole-backcover-v2.3mf are ClockworkPi's uConsole 3D
+     models (GPL-3.0, per the upstream file name). hardware/stl/1753528-official-clockwork-pi-
+     uconsole-*.pdf is a saved copy of a Printables page by its author and stays under its terms.
+     hardware/stl/back_cover_v2.stl is a MakerWorld model under its author's terms, and
+     back_cover_v2.3mf is a modified version of it (licence not recorded; see hardware/stl/README.md).
    - Product names, logos and trademarks (ClockworkPi, uConsole, Raspberry Pi, HackerGadgets,
      Meshtastic, and others) belong to their owners.
    - External documents, datasheets and websites are linked, not copied, and stay under their own

@@ -3,7 +3,7 @@ id: M10
 title: Ham bands, APRS and licensing
 themed_title: Passage 10 · The amateur bands
 discipline: ham-radio
-station: sdr
+station: sdr/listen
 prerequisites:
   - {id: M2, soft: false}
   - {id: M5, soft: false}

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Staged by render-actuator.sh: ./styles.css and ./js/ are symlinks to the shipping files,
+       ./fixtures.js is generated from the real mesh_radio.py, and the actuator markup below is
+       copied out of index.html at render time. Opening this file in place won't work. -->
+  <link rel="stylesheet" href="./styles.css" />
+  <style>body { padding: 16px; } .state-label { color: var(--dim); font-size: 0.8rem; }</style>
+</head>
+<body>
+  <main id="main">
+    <p class="state-label" id="state-label"></p>
+    <div class="panel">
+      <div class="mesh-log" id="mesh-log" role="log" aria-relevant="additions"></div>
+      <!--ACTUATOR-->
+    </div>
+  </main>
+  <!-- Drives the REAL mesh.js. main.js is not loaded (its WebSocket loop hangs headless chromium),
+       and pollMeshMessages is never called, so nothing is fetched or sent. -->
+  <script type="module">
+    import fixtures from "./fixtures.js";
+    import { initMesh, syncMesh } from "./js/mesh.js";
+    const state = new URLSearchParams(location.search).get("state") || "ready";
+    const f = fixtures[state];
+    document.getElementById("state-label").textContent = `state: ${state}`;
+    initMesh();
+    if (f.mesh) syncMesh({ mesh: f.mesh });
+    const sel = document.getElementById("mesh-channel");
+    if (f.channel != null) { sel.value = String(f.channel); sel.dispatchEvent(new Event("change")); }
+    if (f.relay === false) {
+      const cb = document.getElementById("mesh-relay-check");
+      cb.checked = false;
+      cb.dispatchEvent(new Event("change"));
+    }
+    if (f.text) {
+      const input = document.getElementById("mesh-text");
+      input.value = f.text;
+      input.dispatchEvent(new Event("input"));
+    }
+    if (new URLSearchParams(location.search).get("focus") === "button") document.getElementById("mesh-send-btn").focus();
+  </script>
+</body>
+</html>

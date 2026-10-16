@@ -3,7 +3,7 @@ id: M13
 title: Authorized active Wi-Fi audit
 themed_title: Passage 13 · Sounding your own hull
 discipline: wardriving
-station: wifi
+station: wpa
 prerequisites:
   - {id: M0, soft: false}
   - {id: M7, soft: false}

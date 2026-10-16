@@ -67,11 +67,12 @@ hardware fact; it does not carry operating procedure for it.
 
 ## JP1 — battery mode jumper
 
-The silkscreen beside the BAT2 position reads, as transcribed from a photograph of an assembled
-board:
+The silkscreen beside the BAT2 position reads, as read from a legible photograph (2026-10-11,
+[`../../images/assembly/20261011-nvme-board-jp1-closed-closeup.jpg`](../../images/assembly/20261011-nvme-board-jp1-closed-closeup.jpg)),
+vendor spelling kept:
 
-> "Solder JP1 for disperse current when using JST for Lipo battery pack. Must let it open for
-> 18650 batteries."
+> "Solder JP1 for disperse current when useing JST to connect Lipo battery pack. Must let it open
+> for 18650 batteries."
 
 **Confirm the wording and the jumper's location on the physical board before applying power.** Set
 it to match the battery actually fitted; this is a current-path setting on the battery rail, not a
@@ -88,6 +89,12 @@ in any photograph taken so far**. A two-pad solder-jumper footprint is visible b
 marking, consistent with it. The board also carries a `Reverse Warning` label at that edge. **Update 2026-09-23:** the owner read the board directly. `JP1` is **open**, correct for the
 18650s now fitted, and the reverse-polarity LED is unlit (checklist 1.7). `JP1`'s exact board
 location is still unrecorded; a legible photo would settle it.
+
+**Update 2026-10-11:** location recorded from a legible photo — right of the 2-pin JST connector
+and `R14`, on the top edge of the `BAT2` outline, with the silkscreen note's arrow pointing to it.
+The owner removed the 18650 holder and soldered `JP1` **closed** for the Meshnology LiPo; the pads
+appear bridged in the photo. Continuity across `JP1` is *unverified* until metered. Photos:
+[`../../images/assembly/README.md`](../../images/assembly/README.md).
 
 ## Manual battery on/off — `R14` / `J6`
 

@@ -29,12 +29,13 @@ you point `airodump-ng -w <prefix>` — **never inside this repo's working tree*
 
 ## Capture source on this build (same adapter as Kismet — see `kismet.md`)
 
-The onboard CM4 Wi-Fi (`brcmfmac`, `wlan0`) has no monitor mode. `wlan1` is a Ralink RT5370 USB
-dongle (`rt2800usb`), standing in for the still-pre-order AC1200 — confirmed monitor-capable via
-`airmon-ng`:
+The onboard CM4 Wi-Fi (`brcmfmac`, `wlan0`) has no monitor mode. `wlan1` is the AC1200 card (MediaTek
+MT7921AUN, `mt7921u`), installed 2026-09-30 — monitor mode verified on 2.4/5/6 GHz. The Ralink
+RT5370 (`rt2800usb`) that stood in for it was removed the same day; the 2026-09-21 run below was on
+the RT5370 and has not been repeated on the AC1200 (*verify before relying on it*):
 
 ```bash
-sudo airmon-ng            # lists phys/interfaces + chipset; confirms wlan1 (RT5370) here
+sudo airmon-ng            # lists phys/interfaces + chipset; expect wlan1 (mt7921u)
 ```
 
 ## Verified 2026-09-21

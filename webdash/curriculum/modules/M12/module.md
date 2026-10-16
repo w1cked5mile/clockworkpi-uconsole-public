@@ -3,7 +3,7 @@ id: M12
 title: Land-mobile and maritime
 themed_title: Passage 12 · Reading the traffic
 discipline: communications
-station: sdr
+station: sdr/listen
 prerequisites:
   - {id: M8, soft: false}
 sources:

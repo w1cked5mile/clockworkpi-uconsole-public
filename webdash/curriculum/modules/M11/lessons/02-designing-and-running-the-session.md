@@ -5,13 +5,16 @@ est_minutes: 35
 ---
 
 With a budget composed, the session designs itself around two limits: the pack's predicted runtime and
-the **3.5 V abort line**. The plan is a ~2 h battery session with all four stations live at once — GPS
+the **voltage floor — plug in by 3.60 V, shut down by 3.55 V**. The device cuts power with no warning at
+≈3.53 V under load (measured 2026-10-13), so 3.5 V is already too late. The plan is a ~2 h battery
+session with all four stations live at once — GPS
 tracking, the mesh node receiving, ADS-B decoding, and a Wi-Fi survey on the AC1200 — everything you
 brought up individually in M3, M4, M6 and M7, now running together and drawing from one cell.
 
 The system is **1S** (a single cell in series terms), which is what makes the voltage line meaningful:
-there is no higher-cell headroom to hide a sagging cell, so the cell voltage is the real fuel gauge, and
-3.5 V is where you stop:
+there is no higher-cell headroom to hide a sagging cell, so the cell voltage is the real fuel gauge.
+Plug in by **3.60 V** and shut down by **3.55 V**; the loaded voltage hitting ≈3.53 V is the hard cut,
+not a target to ride down to:
 
 @ref docs/reference/power-budget.md#battery-the-system-is-1s
 

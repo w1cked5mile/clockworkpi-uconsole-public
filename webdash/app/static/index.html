@@ -31,11 +31,12 @@
     </nav>
     <span class="strip-spacer"></span>
     <a class="strip-item learn-chip" href="#/learn" data-nav="learn" title="The Chart Table: lessons and labs">◆ Learn</a>
+    <a class="strip-item" href="#/timeline" data-nav="timeline" title="How this dashboard was built">⎘ Build log</a>
     <span id="conn-state" class="strip-item" role="status" aria-live="polite">connecting…</span>
     <a class="strip-item" href="/logout">log out</a>
   </header>
 
-  <main id="main">
+  <main id="main" tabindex="-1">
     <!-- Overview: one tile per station. System and Power on top, the four rail stations below. -->
     <section class="view" data-view="overview" aria-labelledby="overview-title">
       <h1 class="view-title visually-hidden" id="overview-title" tabindex="-1">Overview</h1>
@@ -46,6 +47,9 @@
             <span class="status" data-status="system"></span>
           </header>
           <div class="hero"><span class="hero-num" id="tile-system-hero">—</span><span class="hero-cap" id="tile-system-caption"></span></div>
+          <figure class="spark" data-field="temp_c" data-unit="°C" data-label="CPU temperature">
+            <svg class="spark-svg" role="img" aria-label=""></svg><figcaption class="spark-cap"></figcaption>
+          </figure>
           <div class="facts" id="tile-system-facts"></div>
           <footer class="tile-foot">
             <a class="tile-link" href="#/system">Details →</a>
@@ -58,6 +62,9 @@
             <span class="status" data-status="power"></span>
           </header>
           <div class="hero"><span class="hero-num" id="tile-power-hero">—</span><span class="hero-cap" id="tile-power-caption"></span></div>
+          <figure class="spark" data-field="voltage_v" data-unit="V" data-label="Battery voltage" data-warn="3.60">
+            <svg class="spark-svg" role="img" aria-label=""></svg><figcaption class="spark-cap"></figcaption>
+          </figure>
           <div class="facts" id="tile-power-facts"></div>
           <footer class="tile-foot">
             <a class="tile-link" href="#/power">All rails →</a>
@@ -72,7 +79,7 @@
           <div class="hero"><span class="hero-num" id="tile-mesh-hero">—</span><span class="hero-cap" id="tile-mesh-caption"></span></div>
           <div class="facts" id="tile-mesh-facts"></div>
           <footer class="tile-foot">
-            <span class="rail-ctl"><button type="button" class="rail-switch" role="switch" data-feature="LORA" aria-label="LORA rail"></button> LORA</span>
+            <span class="rail-ctl"><button type="button" class="rail-switch" role="switch" aria-checked="false" data-feature="LORA" aria-label="LORA rail"></button> LORA</span>
             <a class="tile-link" id="tile-mesh-link" href="#/mesh">Details →</a>
           </footer>
           <div class="switch-error" role="alert"></div>
@@ -86,7 +93,7 @@
           <div class="hero"><span class="hero-num" id="tile-gps-hero">—</span><span class="hero-cap" id="tile-gps-caption"></span></div>
           <div class="facts" id="tile-gps-facts"></div>
           <footer class="tile-foot">
-            <span class="rail-ctl"><button type="button" class="rail-switch" role="switch" data-feature="GPS" aria-label="GPS rail"></button> GPS</span>
+            <span class="rail-ctl"><button type="button" class="rail-switch" role="switch" aria-checked="false" data-feature="GPS" aria-label="GPS rail"></button> GPS</span>
             <a class="tile-link" href="#/gps">Details →</a>
           </footer>
           <div class="switch-error" role="alert"></div>
@@ -100,7 +107,7 @@
           <div class="hero"><span class="hero-num" id="tile-sdr-hero">—</span><span class="hero-cap" id="tile-sdr-caption"></span></div>
           <div class="facts" id="tile-sdr-facts"></div>
           <footer class="tile-foot">
-            <span class="rail-ctl"><button type="button" class="rail-switch" role="switch" data-feature="SDR" aria-label="SDR rail"></button> SDR</span>
+            <span class="rail-ctl"><button type="button" class="rail-switch" role="switch" aria-checked="false" data-feature="SDR" aria-label="SDR rail"></button> SDR</span>
             <a class="tile-link" href="#/sdr">Details →</a>
           </footer>
           <div class="switch-error" role="alert"></div>
@@ -114,7 +121,7 @@
           <div class="hero"><span class="hero-num" id="tile-wifi-hero">—</span><span class="hero-cap" id="tile-wifi-caption"></span></div>
           <div class="facts" id="tile-wifi-facts"></div>
           <footer class="tile-foot">
-            <span class="rail-ctl"><button type="button" class="rail-switch" role="switch" data-feature="USB" aria-label="USB rail"></button> USB</span>
+            <span class="rail-ctl"><button type="button" class="rail-switch" role="switch" aria-checked="false" data-feature="USB" aria-label="USB rail"></button> USB</span>
             <a class="tile-link" href="#/wifi">Details →</a>
           </footer>
           <div class="switch-error" role="alert"></div>
@@ -131,16 +138,45 @@
       </div>
       <div class="panel">
         <div id="mesh-body">—</div>
-        <div class="mesh-log" id="mesh-log" aria-live="polite"><div class="panel-empty">No messages yet.</div></div>
-        <form class="mesh-send" id="mesh-send-form" autocomplete="off">
-          <select id="mesh-channel" aria-label="Channel"></select>
-          <input id="mesh-text" type="text" maxlength="200" placeholder="Message the mesh…" aria-label="Message" required>
-          <button type="submit" id="mesh-send-btn">Send</button>
-        </form>
-        <div class="mesh-send-status" id="mesh-send-status"></div>
+        <div class="mesh-log" id="mesh-log" role="log" aria-label="Mesh messages" aria-relevant="additions"><div class="panel-empty">No messages yet.</div></div>
+        <svg hidden aria-hidden="true"><symbol id="g-antenna" viewBox="0 0 16 16"><path d="M8 6v9M3 2a7 7 0 0 0 0 8M13 2a7 7 0 0 1 0 8M5.5 4a3.5 3.5 0 0 0 0 4M10.5 4a3.5 3.5 0 0 1 0 4" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol></svg>
+        <!-- Transmit control (actuator.js): states what Send does and, when blocked, why. -->
+        <div class="actuator" data-medium="rf" id="mesh-act">
+          <p class="act-glance" id="mesh-act-glance"><svg class="act-glyph" aria-hidden="true"><use href="#g-antenna"/></svg><span class="act-tag">TX</span> <span data-act="caption">Checking the radio…</span></p>
+          <p class="act-note" id="mesh-act-note" data-act="note" hidden></p>
+          <form class="mesh-send" id="mesh-send-form" autocomplete="off">
+            <select id="mesh-channel" aria-label="Channel" aria-describedby="mesh-act-glance mesh-act-note"></select>
+            <input id="mesh-text" type="text" placeholder="Message the mesh…" aria-label="Message" aria-describedby="mesh-bytes">
+            <span class="act-count" id="mesh-bytes">0/200 bytes</span>
+            <button type="submit" class="act-btn" id="mesh-send-btn" data-act="button" aria-disabled="true" aria-describedby="mesh-act-reason mesh-act-glance">Transmit</button>
+          </form>
+          <label class="act-option"><input type="checkbox" id="mesh-relay-check" checked aria-describedby="mesh-act-retries"> Ask for a relay check</label>
+          <p class="act-retries" id="mesh-act-retries" data-act="retries" hidden></p>
+          <p class="act-reason" id="mesh-act-reason" data-act="reason" role="status"></p>
+          <p class="mesh-send-status" id="mesh-send-status" role="status" aria-live="polite"></p>
+          <details class="act-detail" id="mesh-act-detail" data-act="detail">
+            <summary>What this sends, and who can read it</summary>
+            <ul data-act="detail-list"></ul>
+          </details>
+        </div>
+        <!-- MQTT on/off (actuator.js, medium "local"): a config change, not a transmission, but it
+             restarts meshtasticd and the node re-announces itself, so it says so at the button. -->
+        <div class="actuator act-mqtt" data-medium="local" id="mesh-mqtt">
+          <h3 class="panel-subtitle">MQTT (internet uplink)</h3>
+          <p class="act-glance" id="mesh-mqtt-glance"><span data-act="caption">Checking the radio…</span></p>
+          <p class="act-note" id="mesh-mqtt-note" data-act="note" hidden></p>
+          <button type="button" class="btn act-btn" id="mesh-mqtt-btn" data-act="button" aria-disabled="true" aria-describedby="mesh-mqtt-reason mesh-mqtt-glance mesh-mqtt-restart">Turn MQTT on/off</button>
+          <p class="act-retries" id="mesh-mqtt-restart" data-act="retries" hidden></p>
+          <p class="act-reason" id="mesh-mqtt-reason" data-act="reason" role="status"></p>
+          <p class="mesh-send-status" id="mesh-mqtt-status" role="status" aria-live="polite"></p>
+          <details class="act-detail" data-act="detail">
+            <summary>What this changes</summary>
+            <ul data-act="detail-list"></ul>
+          </details>
+        </div>
         <a class="open-link" id="mesh-link" href="#" target="_blank" rel="noopener" style="display:none">Open Meshtastic UI ↗</a>
         <div class="embed-off" id="mesh-webui-note">Meshtastic's own web app isn't answering. It runs inside meshtasticd, so it needs the LORA rail on and the service running. Meanwhile, use the message box above, the <code>meshtastic</code> CLI, or the phone app over the network.</div>
-        <div class="panel-foot"><span class="rail-ctl"><button type="button" class="rail-switch" role="switch" data-feature="LORA" aria-label="LORA rail"></button> LORA rail</span></div>
+        <div class="panel-foot"><span class="rail-ctl"><button type="button" class="rail-switch" role="switch" aria-checked="false" data-feature="LORA" aria-label="LORA rail"></button> LORA rail</span></div>
         <div class="switch-error" role="alert"></div>
       </div>
     </section>
@@ -155,7 +191,7 @@
         <div id="gps-body">—</div>
         <p class="hint">Position is shown as a Maidenhead grid square by default, matching how this repo records location.</p>
         <button type="button" class="btn" id="gps-coords-btn" aria-pressed="false">Show coordinates</button>
-        <div class="panel-foot"><span class="rail-ctl"><button type="button" class="rail-switch" role="switch" data-feature="GPS" aria-label="GPS rail"></button> GPS rail</span></div>
+        <div class="panel-foot"><span class="rail-ctl"><button type="button" class="rail-switch" role="switch" aria-checked="false" data-feature="GPS" aria-label="GPS rail"></button> GPS rail</span></div>
         <div class="switch-error" role="alert"></div>
       </div>
     </section>
@@ -163,45 +199,68 @@
     <section class="view" data-view="sdr" aria-labelledby="sdr-title" hidden>
       <div class="view-head">
         <a class="back" href="#/">← Overview</a>
-        <h1 class="view-title" id="sdr-title" tabindex="-1">SDR — pick an application</h1>
+        <h1 class="view-title" id="sdr-title" tabindex="-1">SDR</h1>
         <span class="status" data-status="sdr"></span>
       </div>
-      <div class="panel">
-        <h2 class="panel-title">ADS-B — aircraft (readsb)</h2>
-        <p class="hint">Turning the SDR rail on only powers the tuner — it no longer starts ADS-B by
-          itself. The three applications below share the single RTL-SDR, so starting one stops the
-          others.</p>
-        <div class="sdr-app-ctl">
-          <button type="button" class="btn" id="adsb-start">Start ADS-B</button>
-          <button type="button" class="btn danger" id="adsb-stop" style="display:none">⏹ Stop ADS-B</button>
-          <span class="ctl-error" id="adsb-error" role="alert"></span>
-        </div>
-        <div id="adsb-body">—</div>
-        <div class="panel-foot"><span class="rail-ctl"><button type="button" class="rail-switch" role="switch" data-feature="SDR" aria-label="SDR rail"></button> SDR rail</span></div>
-        <div class="switch-error" role="alert"></div>
-        <a class="open-link" id="adsb-link" href="/apps/tar1090/" target="_blank" rel="noopener" style="display:none">Open map in a new tab ↗</a>
+      <!-- One RTL-SDR, four applications: the bridge lets one hold the tuner at a time. The banner
+           names the holder from the bridge's own record, on every tab. The tabs are plain links
+           (#/sdr/hunt), so Learn can link to one and Back works; the current one carries
+           aria-current, and each panel is a labelled region. See webdash-design.md. -->
+      <div class="sdr-tuner-row">
+        <p class="sdr-tuner" id="sdr-tuner" role="status">Tuner: checking…</p>
+        <span class="sdr-now" id="sdr-now"></span>
+        <button type="button" class="btn danger" id="sdr-stop" style="display:none">⏹ Stop</button>
+        <audio id="sdr-audio" preload="none"></audio>
       </div>
-
-      <div class="panel sdr-hunt">
-        <h2 class="panel-title">Broadcast &amp; airband hunt</h2>
-        <p class="hint">Receive-only sweep for local signals. Uses the one SDR tuner, so stop ADS-B
-          first if it's running; the tuner stays free for listening afterward. Turn the SDR rail on
-          first.</p>
-        <div class="sdr-hunt-ctl">
-          <label>Band<select id="sdr-band">
-            <option value="fm">FM broadcast (88–108 MHz)</option>
-            <option value="airband">Airband (118–137 MHz AM)</option>
-          </select></label>
-          <button type="button" class="btn" id="sdr-scan">Scan</button>
-          <span class="sdr-hunt-status" id="sdr-hunt-status"></span>
-          <span class="ctl-error" id="sdr-hunt-error" role="alert"></span>
+      <nav class="sdr-tabs" aria-label="SDR applications">
+        <a id="sdr-tab-adsb" href="#/sdr/adsb" aria-current="page">ADS-B</a>
+        <a id="sdr-tab-hunt" href="#/sdr/hunt">Hunt</a>
+        <a id="sdr-tab-listen" href="#/sdr/listen">Listen</a>
+        <a id="sdr-tab-owrx" href="#/sdr/owrx">Receiver</a>
+      </nav>
+      <div class="panel">
+        <div role="region" id="sdr-panel-adsb" aria-labelledby="sdr-h-adsb">
+          <h2 class="panel-title" id="sdr-h-adsb">ADS-B — aircraft (readsb)</h2>
+          <p class="hint">Decodes aircraft transponders on 1090&nbsp;MHz. Turning the SDR rail on only
+            powers the tuner; ADS-B starts when you start it here.</p>
+          <p class="hint sdr-block" id="adsb-block"></p>
+          <div class="sdr-app-ctl">
+            <button type="button" class="btn" id="adsb-start" aria-describedby="adsb-block">Start ADS-B</button>
+            <button type="button" class="btn danger" id="adsb-stop" style="display:none">⏹ Stop ADS-B</button>
+            <span class="ctl-error" id="adsb-error" role="alert"></span>
+          </div>
+          <div id="adsb-body">—</div>
+          <a class="open-link" id="adsb-link" href="/apps/tar1090/" target="_blank" rel="noopener" style="display:none">Open map in a new tab ↗</a>
         </div>
-        <table class="sdr-list" id="sdr-list"><thead><tr>
-          <th>Frequency</th><th>Signal</th><th>SNR</th><th></th>
-        </tr></thead><tbody id="sdr-list-body"><tr><td colspan="4" class="dim">No scan yet.</td></tr></tbody></table>
-
-        <div class="sdr-listen">
-          <h3 class="panel-subtitle">Listen</h3>
+        <div role="region" id="sdr-panel-hunt" aria-labelledby="sdr-h-hunt" hidden>
+          <h2 class="panel-title" id="sdr-h-hunt">Broadcast &amp; airband hunt</h2>
+          <p class="hint">A receive-only power sweep across a band, listing the strongest signals.
+            ▶ Listen plays one; Stop sits by the tuner line above.</p>
+          <p class="hint sdr-block" id="sdr-hunt-block"></p>
+          <div class="sdr-hunt-ctl">
+            <label>Band<select id="sdr-band">
+              <option value="fm">FM broadcast (88–108 MHz)</option>
+              <option value="airband">Airband (118–137 MHz AM)</option>
+            </select></label>
+            <button type="button" class="btn" id="sdr-scan" aria-describedby="sdr-hunt-block">Sweep</button>
+            <span class="sdr-hunt-status" id="sdr-hunt-status"></span>
+            <span class="ctl-error" id="sdr-hunt-error" role="alert"></span>
+          </div>
+          <figure class="sdr-spectrum" id="sdr-spectrum-fig" hidden>
+            <canvas id="sdr-spectrum" width="600" height="150" role="img"
+              aria-label="Spectrum of the last sweep. The peaks are listed in the table below."></canvas>
+            <canvas id="sdr-waterfall" width="600" height="70" aria-hidden="true"></canvas>
+            <figcaption class="hint" id="sdr-spectrum-cap"></figcaption>
+          </figure>
+          <div class="table-wrap"><table class="sdr-list" id="sdr-list"><thead><tr>
+            <th>Frequency</th><th title="Relative level from rtl_power — uncalibrated, not absolute dBm">Signal</th><th>SNR</th><th></th>
+          </tr></thead><tbody id="sdr-list-body"><tr><td colspan="4" class="dim">No sweep yet.</td></tr></tbody></table></div>
+        </div>
+        <div role="region" id="sdr-panel-listen" aria-labelledby="sdr-h-listen" hidden>
+          <h2 class="panel-title" id="sdr-h-listen">Listen</h2>
+          <p class="hint">Live audio from one channel, or the airband scanner, which cycles channels
+            and pauses on traffic. Starting a new listen takes the tuner from the current one.</p>
+          <p class="hint sdr-block" id="sdr-listen-block"></p>
           <div class="sdr-listen-ctl">
             <label>NOAA weather<select id="sdr-noaa">
               <option value="162400000" selected>162.400 (WX2)</option>
@@ -213,83 +272,184 @@
               <option value="162550000">162.550 (WX1)</option>
             </select></label>
             <span class="hint" id="sdr-noaa-auto"></span>
-            <button type="button" class="btn" id="sdr-noaa-listen">Listen</button>
-            <button type="button" class="btn danger" id="sdr-stop" style="display:none">⏹ Stop</button>
-            <span class="sdr-now" id="sdr-now"></span>
+            <button type="button" class="btn" id="sdr-noaa-listen" aria-describedby="sdr-listen-block">Listen</button>
           </div>
           <div class="sdr-listen-ctl">
-            <button type="button" class="btn" id="sdr-scan-listen">▶ Scan airband</button>
+            <button type="button" class="btn" id="sdr-scan-listen" aria-describedby="sdr-listen-block">▶ Scan airband</button>
             <label>squelch<input id="sdr-squelch" type="number" min="1" max="2000" value="150" class="sq-input"></label>
-            <span class="hint" id="sdr-scan-note">Cycles airband channels and pauses on traffic. Run an Airband hunt first to scan just the live ones; otherwise it sweeps 118–137&nbsp;MHz (slower). Press Stop to end.</span>
+            <span class="hint" id="sdr-scan-note">Cycles airband channels and pauses on traffic. Run an airband sweep on the Hunt tab first to scan just the live ones; otherwise it covers 118–137&nbsp;MHz (slower). Press Stop to end.</span>
           </div>
-          <audio id="sdr-audio" preload="none"></audio>
           <span class="ctl-error" id="sdr-listen-error" role="alert"></span>
         </div>
+        <div role="region" id="sdr-panel-owrx" aria-labelledby="sdr-h-owrx" hidden>
+          <h2 class="panel-title" id="sdr-h-owrx">Receiver — OpenWebRX</h2>
+          <p class="hint">A web-native SDR receiver: a live waterfall and tunable demodulators in your
+            browser. It owns the tuner the whole time it runs, so ADS-B, Hunt and Listen are blocked
+            until you stop it. Receive-only. It has its own admin login (set once on the device).</p>
+          <p class="hint sdr-block" id="sdr-owrx-block"></p>
+          <div class="sdr-app-ctl">
+            <button type="button" class="btn" id="owrx-start" aria-describedby="sdr-owrx-block">Start receiver</button>
+            <button type="button" class="btn danger" id="owrx-stop" style="display:none">⏹ Stop receiver</button>
+            <span class="ctl-error" id="owrx-error" role="alert"></span>
+          </div>
+          <p class="hint" id="owrx-note"></p>
+          <a class="open-link" id="owrx-link" href="#" target="_blank" rel="noopener" style="display:none">Open the receiver in a new tab ↗</a>
+        </div>
+        <div class="panel-foot"><span class="rail-ctl"><button type="button" class="rail-switch" role="switch" aria-checked="false" data-feature="SDR" aria-label="SDR rail"></button> SDR rail</span></div>
+        <div class="switch-error" role="alert"></div>
       </div>
     </section>
 
+    <!-- Wi-Fi: one view, three tabs (Kismet scan, Site survey, authorized WPA audit) on the one
+         USB-rail accessory radio, switched like the SDR tabs. Sub-paths #/wifi/<tab>; bare #/wifi
+         opens Kismet. Panels share one .panel, so the USB rail switch in .panel-foot is on every
+         tab. The WPA allowlist gate is unchanged — enforced server-side and in wpa-capture.sh;
+         which route shows the panel does not touch it (decisions.md 2026-10-11). -->
     <section class="view" data-view="wifi" aria-labelledby="wifi-title" hidden>
       <div class="view-head">
         <a class="back" href="#/">← Overview</a>
-        <h1 class="view-title" id="wifi-title" tabindex="-1">Wi-Fi survey (Kismet)</h1>
-        <span class="status" data-status="wifi"></span>
+        <h1 class="view-title" id="wifi-title" tabindex="-1">Wi-Fi</h1>
+        <span class="status-label dim">Kismet</span> <span class="status" data-status="wifi"></span>
       </div>
+      <nav class="wifi-tabs" aria-label="Wi-Fi tools">
+        <a id="wifi-tab-kismet" href="#/wifi/kismet" aria-current="page">Kismet</a>
+        <a id="wifi-tab-survey" href="#/wifi/survey">Site survey</a>
+        <a id="wifi-tab-capture" href="#/wifi/capture">Packet capture</a>
+        <a id="wifi-tab-wpa" href="#/wifi/wpa">WPA audit</a>
+      </nav>
       <div class="panel">
-        <div id="kismet-body">—</div>
-        <p class="hint">Kismet only listens: it records what nearby devices broadcast and never connects to them.
-          It isn't started at boot — use the button below.</p>
-        <div class="kismet-ctl">
-          <button type="button" class="btn" id="kismet-toggle" data-action="start">Start Kismet</button>
-          <span class="ctl-error" id="kismet-error" role="alert"></span>
+        <div role="region" id="wifi-panel-kismet" aria-labelledby="wifi-h-kismet">
+          <h2 class="panel-title" id="wifi-h-kismet">Passive Wi-Fi scan (Kismet) <span class="sub">Harbour survey</span></h2>
+          <div id="kismet-body">—</div>
+          <p class="hint">Kismet only listens: it records what nearby devices broadcast and never connects to them.
+            It isn't started at boot — use the button below.</p>
+          <div class="kismet-ctl">
+            <button type="button" class="btn" id="kismet-toggle" data-action="start">Start Kismet</button>
+            <span class="ctl-error" id="kismet-error" role="alert"></span>
+          </div>
+          <a class="open-link" id="kismet-link" href="#" target="_blank" rel="noopener" style="display:none">Open Kismet UI ↗</a>
         </div>
-        <a class="open-link" id="kismet-link" href="#" target="_blank" rel="noopener" style="display:none">Open Kismet UI ↗</a>
-        <div class="panel-foot"><span class="rail-ctl"><button type="button" class="rail-switch" role="switch" data-feature="USB" aria-label="USB rail"></button> USB rail</span></div>
+
+        <div role="region" id="wifi-panel-survey" aria-labelledby="wifi-h-survey" hidden>
+          <h2 class="panel-title" id="wifi-h-survey">Claude-assisted site survey</h2>
+          <p class="hint">Walk a site and drop a waypoint at each spot. Each waypoint takes a passive
+            snapshot of what Kismet has heard, tagged with the GPS grid square. Stop when done, then
+            download a full technical report, a leadership executive summary, or a brief to hand to
+            Claude for a narrative write-up. Receive-only — nothing is connected to or interfered
+            with. It reads Kismet, so Kismet must be running — start it on the
+            <a href="#/wifi">Kismet</a> tab.</p>
+
+          <!-- No active survey: start one, and list past surveys. -->
+          <div id="survey-idle">
+            <form id="survey-start-form" class="survey-start" autocomplete="off">
+              <label>Survey name <span class="dim">(optional)</span>
+                <input type="text" id="survey-name" placeholder="e.g. Acme HQ — ground floor" maxlength="80"></label>
+              <button type="submit" class="btn" id="survey-start">Start survey</button>
+              <span class="ctl-error" id="survey-start-error" role="alert"></span>
+            </form>
+          </div>
+
+          <!-- Active survey: drop waypoints, undo, stop. -->
+          <div id="survey-active" hidden>
+            <div class="survey-active-head">
+              <strong id="survey-active-name">—</strong>
+              <span class="dim" id="survey-active-count">0 waypoints</span>
+            </div>
+            <div class="survey-wp-ctl">
+              <label>Waypoint label
+                <input type="text" id="survey-wp-label" placeholder="e.g. Lobby / Room 204" maxlength="80"></label>
+              <label>Note <span class="dim">(optional)</span>
+                <input type="text" id="survey-wp-note" placeholder="e.g. near window" maxlength="400"></label>
+              <button type="button" class="btn" id="survey-wp-drop">Drop waypoint</button>
+              <button type="button" class="btn" id="survey-wp-undo">Undo last</button>
+              <button type="button" class="btn danger" id="survey-stop">Stop &amp; finish</button>
+              <span class="ctl-error" id="survey-wp-error" role="alert"></span>
+            </div>
+            <table class="survey-wp-list"><thead><tr>
+              <th>#</th><th>Waypoint</th><th>Grid</th><th>Fix</th><th>Devices</th><th>Note</th>
+            </tr></thead><tbody id="survey-wp-body"><tr><td colspan="6" class="dim">No waypoints yet.</td></tr></tbody></table>
+          </div>
+
+          <h3 class="panel-subtitle">Surveys &amp; reports</h3>
+          <table class="survey-list"><thead><tr>
+            <th>Name</th><th>When</th><th>WPs</th><th>Reports</th><th></th>
+          </tr></thead><tbody id="survey-list-body"><tr><td colspan="5" class="dim">—</td></tr></tbody></table>
+          <div id="survey-preview" class="survey-preview" hidden></div>
+        </div>
+
+        <div role="region" id="wifi-panel-capture" aria-labelledby="wifi-h-capture" class="tshark-cap" hidden>
+          <h2 class="panel-title" id="wifi-h-capture">Packet capture — passive troubleshooting</h2>
+          <p class="hint">Captures Fancy's own traffic to a bounded ring buffer (~100&nbsp;MB cap in
+            <code>~/labs/tshark</code>) to help diagnose hangs and dropouts. It only listens — there is no
+            transmit path. The dashboard shows counts only; the saved <code>.pcapng</code> (which does contain
+            addresses) stays on the device for a Wireshark deep-dive.</p>
+          <div class="tshark-ctl">
+            <label>Interface <span class="dim">(<code>wlan1</code> needs the USB rail on)</span><select id="tshark-iface"><option value="">—</option></select></label>
+            <label>Capture filter <span class="dim">(optional BPF)</span>
+              <input type="text" id="tshark-filter" placeholder="e.g. host 192.0.2.1 or port 53" maxlength="200"></label>
+            <label>Duration <span class="dim">(s, 0 = until stopped)</span>
+              <input type="number" id="tshark-duration" min="0" max="86400" step="30" value="120"></label>
+            <button type="button" class="btn" id="tshark-start" disabled>Start capture</button>
+            <button type="button" class="btn danger" id="tshark-cancel" style="display:none">Stop</button>
+            <span class="ctl-error" id="tshark-error" role="alert"></span>
+          </div>
+          <div class="tshark-status" id="tshark-status"></div>
+          <div id="tshark-body">—</div>
+          <div class="tshark-protos" id="tshark-protos"></div>
+          <details class="tshark-pcaps">
+            <summary>Saved captures on device</summary>
+            <div id="tshark-pcaps" class="dim">—</div>
+          </details>
+        </div>
+
+        <div role="region" id="wifi-panel-wpa" aria-labelledby="wifi-h-wpa" hidden>
+          <h2 class="panel-title" id="wifi-h-wpa">WPA audit — authorized equipment only <span aria-hidden="true">🔒</span></h2>
+          <p class="warn" role="note">Active auditing (deauth + handshake capture) runs <strong>only</strong>
+            against a BSSID on the allowlist below — equipment you own or have written authorization to
+            test. Adding a BSSID here is your authorization assertion; the host enforces it.</p>
+
+          <form id="wpa-add-form" class="wpa-add" autocomplete="off">
+            <label>BSSID<input type="text" id="wpa-bssid" placeholder="AA:BB:CC:DD:EE:FF"
+              pattern="([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}" maxlength="17" required></label>
+            <label>Authorization basis<input type="text" id="wpa-basis" placeholder="owned / engagement ref"
+              maxlength="128" required></label>
+            <label>SSID label <span class="dim">(optional)</span><input type="text" id="wpa-ssid"
+              placeholder="my-ap" maxlength="64"></label>
+            <button type="submit" class="btn">Authorize BSSID</button>
+            <span class="ctl-error" id="wpa-add-error" role="alert"></span>
+          </form>
+
+          <div class="table-wrap"><table class="wpa-list" id="wpa-list"><thead><tr>
+            <th>BSSID</th><th>SSID</th><th>Basis</th><th>Added</th><th></th>
+          </tr></thead><tbody id="wpa-list-body"><tr><td colspan="5" class="dim">—</td></tr></tbody></table></div>
+
+          <div class="wpa-capture">
+            <h3 class="panel-subtitle">Capture handshake</h3>
+            <p class="hint">Sends a few bounded, targeted deauth frames at the selected authorized AP to
+              force a handshake, captures it, and reports the result. It needs the USB rail on and puts
+              the AC1200 (<code>wlan1</code>) into monitor mode. Kismet is paused during capture and
+              restored after.</p>
+            <div class="wpa-cap-ctl">
+              <label>Target<select id="wpa-cap-target"><option value="">— no authorized BSSID —</option></select></label>
+              <button type="button" class="btn" id="wpa-cap-start" disabled>Start capture</button>
+              <button type="button" class="btn danger" id="wpa-cap-cancel" style="display:none">Cancel</button>
+            </div>
+            <div class="wpa-cap-status" id="wpa-cap-status"></div>
+            <span class="ctl-error" id="wpa-cap-error" role="alert"></span>
+
+            <div class="wpa-crack" id="wpa-crack" style="display:none">
+              <p class="hint">Offload the captured handshake to the GPU host (gpu-host) to recover
+                the passphrase. Runs over the tailnet; the host must be online. The recovered key is
+                shown here and not stored.</p>
+              <button type="button" class="btn" id="wpa-crack-start">Send to gpu-host (crack)</button>
+              <div class="wpa-crack-status" id="wpa-crack-status"></div>
+              <div class="wpa-crack-result" id="wpa-crack-result"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-foot"><span class="rail-ctl"><button type="button" class="rail-switch" role="switch" aria-checked="false" data-feature="USB" aria-label="USB rail"></button> USB rail</span></div>
         <div class="switch-error" role="alert"></div>
-      </div>
-
-      <div class="panel wpa-audit">
-        <h2 class="panel-title">WPA audit — authorized equipment only</h2>
-        <p class="warn" role="note">Active auditing (deauth + handshake capture) runs <strong>only</strong>
-          against a BSSID on the allowlist below — equipment you own or have written authorization to
-          test. Adding a BSSID here is your authorization assertion; the host enforces it.</p>
-
-        <form id="wpa-add-form" class="wpa-add" autocomplete="off">
-          <label>BSSID<input type="text" id="wpa-bssid" placeholder="AA:BB:CC:DD:EE:FF"
-            pattern="([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}" maxlength="17" required></label>
-          <label>Authorization basis<input type="text" id="wpa-basis" placeholder="owned / engagement ref"
-            maxlength="128" required></label>
-          <label>SSID label <span class="dim">(optional)</span><input type="text" id="wpa-ssid"
-            placeholder="my-ap" maxlength="64"></label>
-          <button type="submit" class="btn">Authorize BSSID</button>
-          <span class="ctl-error" id="wpa-add-error" role="alert"></span>
-        </form>
-
-        <table class="wpa-list" id="wpa-list"><thead><tr>
-          <th>BSSID</th><th>SSID</th><th>Basis</th><th>Added</th><th></th>
-        </tr></thead><tbody id="wpa-list-body"><tr><td colspan="5" class="dim">—</td></tr></tbody></table>
-
-        <div class="wpa-capture">
-          <h3 class="panel-subtitle">Capture handshake</h3>
-          <p class="hint">Sends a few bounded, targeted deauth frames at the selected authorized AP to
-            force a handshake, captures it, and reports the result. Kismet is paused during capture
-            and restored after.</p>
-          <div class="wpa-cap-ctl">
-            <label>Target<select id="wpa-cap-target"><option value="">— no authorized BSSID —</option></select></label>
-            <button type="button" class="btn" id="wpa-cap-start" disabled>Start capture</button>
-            <button type="button" class="btn danger" id="wpa-cap-cancel" style="display:none">Cancel</button>
-          </div>
-          <div class="wpa-cap-status" id="wpa-cap-status"></div>
-          <span class="ctl-error" id="wpa-cap-error" role="alert"></span>
-
-          <div class="wpa-crack" id="wpa-crack" style="display:none">
-            <p class="hint">Offload the captured handshake to the GPU host (gpu-host) to recover
-              the passphrase. Runs over the tailnet; the host must be online. The recovered key is
-              shown here and not stored.</p>
-            <button type="button" class="btn" id="wpa-crack-start">Send to gpu-host (crack)</button>
-            <div class="wpa-crack-status" id="wpa-crack-status"></div>
-            <div class="wpa-crack-result" id="wpa-crack-result"></div>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -300,16 +460,27 @@
         <span class="status" data-status="power"></span>
       </div>
       <div class="panel">
-        <p class="hint">Each switch powers one radio on the AIO V2 board. Off means no power and no signal.</p>
+        <p class="hint">Each switch powers one radio on the AIO V2 board; the arrow shows the service that uses it. Off means no power and no signal.</p>
         <div class="rail-grid">
-          <div class="rail-card"><span class="rail-name">GPS <span class="dim">→ gpsd</span></span><button type="button" class="rail-switch" role="switch" data-feature="GPS" aria-label="GPS rail"></button></div>
-          <div class="rail-card"><span class="rail-name">LORA <span class="dim">→ Meshtastic</span></span><button type="button" class="rail-switch" role="switch" data-feature="LORA" aria-label="LORA rail"></button></div>
-          <div class="rail-card"><span class="rail-name">SDR <span class="dim">→ pick an app</span></span><button type="button" class="rail-switch" role="switch" data-feature="SDR" aria-label="SDR rail"></button></div>
-          <div class="rail-card"><span class="rail-name">USB <span class="dim">→ internal USB-C (Wi-Fi)</span></span><button type="button" class="rail-switch" role="switch" data-feature="USB" aria-label="USB rail"></button></div>
+          <div class="rail-card"><span class="rail-name">GPS <span class="dim">→ gpsd</span></span><button type="button" class="rail-switch" role="switch" aria-checked="false" data-feature="GPS" aria-label="GPS rail"></button></div>
+          <div class="rail-card"><span class="rail-name">LORA <span class="dim">→ Meshtastic</span></span><button type="button" class="rail-switch" role="switch" aria-checked="false" data-feature="LORA" aria-label="LORA rail"></button></div>
+          <div class="rail-card"><span class="rail-name">SDR <span class="dim">→ pick an app</span></span><button type="button" class="rail-switch" role="switch" aria-checked="false" data-feature="SDR" aria-label="SDR rail"></button></div>
+          <div class="rail-card"><span class="rail-name">USB <span class="dim">→ internal USB-C (Wi-Fi + BT)</span></span><button type="button" class="rail-switch" role="switch" aria-checked="false" data-feature="USB" aria-label="USB rail"></button></div>
         </div>
         <div class="rail-error" id="rail-error" role="alert"></div>
         <div id="power-body">—</div>
         <div class="row"><span class="k">Throttle</span><span class="v" id="power-throttle">—</span></div>
+        <div class="spark-grid" aria-label="Last 2 hours">
+          <figure class="spark spark-lg" data-field="voltage_v" data-unit="V" data-label="Battery voltage" data-h="48" data-warn="3.60">
+            <div class="spark-title" aria-hidden="true">Battery voltage</div>
+            <svg class="spark-svg" role="img" aria-label=""></svg><figcaption class="spark-cap"></figcaption>
+          </figure>
+          <figure class="spark spark-lg" data-field="power_w" data-unit="W" data-label="Power draw" data-h="48">
+            <div class="spark-title" aria-hidden="true">Power draw</div>
+            <svg class="spark-svg" role="img" aria-label=""></svg><figcaption class="spark-cap"></figcaption>
+          </figure>
+        </div>
+        <p class="hint">Last 2 h, one sample per 30 s, kept in memory: a webdash restart clears it. The dashed line is 3.60 V, plug in by then (on battery only).</p>
       </div>
     </section>
 
@@ -327,37 +498,33 @@
         <div class="row"><span class="k">CPU temp</span><span class="v" id="sys-temp">—</span></div>
         <div class="row"><span class="k">Avg temp (1h)</span><span class="v" id="sys-temp-avg">—</span></div>
         <div class="row"><span class="k">Uptime</span><span class="v" id="sys-uptime">—</span></div>
-      </div>
-
-      <div class="panel tshark-cap">
-        <h2 class="panel-title">Packet capture — passive troubleshooting</h2>
-        <p class="hint">Captures Fancy's own traffic to a bounded ring buffer (~100&nbsp;MB cap in
-          <code>~/labs/tshark</code>) to help diagnose hangs and dropouts. It only listens — there is no
-          transmit path. The dashboard shows counts only; the saved <code>.pcapng</code> (which does contain
-          addresses) stays on the device for a Wireshark deep-dive.</p>
-        <div class="tshark-ctl">
-          <label>Interface<select id="tshark-iface"><option value="">—</option></select></label>
-          <label>Capture filter <span class="dim">(optional BPF)</span>
-            <input type="text" id="tshark-filter" placeholder="e.g. host 192.0.2.1 or port 53" maxlength="200"></label>
-          <label>Duration <span class="dim">(s, 0 = until stopped)</span>
-            <input type="number" id="tshark-duration" min="0" max="86400" step="30" value="120"></label>
-          <button type="button" class="btn" id="tshark-start" disabled>Start capture</button>
-          <button type="button" class="btn danger" id="tshark-cancel" style="display:none">Stop</button>
-          <span class="ctl-error" id="tshark-error" role="alert"></span>
+        <div class="spark-grid" aria-label="Last 2 hours">
+          <figure class="spark spark-lg" data-field="cpu_percent" data-unit="%" data-label="CPU" data-h="48">
+            <div class="spark-title" aria-hidden="true">CPU</div>
+            <svg class="spark-svg" role="img" aria-label=""></svg><figcaption class="spark-cap"></figcaption>
+          </figure>
+          <figure class="spark spark-lg" data-field="temp_c" data-unit="°C" data-label="CPU temperature" data-h="48">
+            <div class="spark-title" aria-hidden="true">CPU temperature</div>
+            <svg class="spark-svg" role="img" aria-label=""></svg><figcaption class="spark-cap"></figcaption>
+          </figure>
         </div>
-        <div class="tshark-status" id="tshark-status"></div>
-        <div id="tshark-body">—</div>
-        <div class="tshark-protos" id="tshark-protos"></div>
-        <details class="tshark-pcaps">
-          <summary>Saved captures on device</summary>
-          <div id="tshark-pcaps" class="dim">—</div>
-        </details>
+        <p class="hint">Last 2 h, one sample per 30 s, kept in memory: a webdash restart clears it.</p>
       </div>
     </section>
 
     <!-- Learning platform ("the Chart Table"). Rendered by js/learn.js from /api/learn/*. -->
     <section class="view" data-view="learn" aria-label="Learn" hidden>
       <div id="learn-root" class="learn"></div>
+    </section>
+
+    <!-- Build log: how webdash itself was built, with a prompt callout per step. Static content,
+         rendered once by js/timeline.js. -->
+    <section class="view" data-view="timeline" aria-labelledby="timeline-title" hidden>
+      <div class="view-head">
+        <a class="back" href="#/">← Overview</a>
+        <h1 class="view-title" id="timeline-title" tabindex="-1">Build log</h1>
+      </div>
+      <div id="timeline-root" class="timeline"></div>
     </section>
 
     <p class="tagline">Fancy: a listening station named for the frigate <i>Fancy</i>, 1695.</p>

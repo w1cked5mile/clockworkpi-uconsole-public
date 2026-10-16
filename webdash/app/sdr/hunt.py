@@ -51,3 +51,17 @@ async def set_adsb(action: str) -> dict:
             return r.json()
     except (httpx.HTTPError, ValueError) as exc:
         return {"ok": False, "error": f"SDR bridge unreachable: {exc}"}
+
+
+async def set_owrx(action: str) -> dict:
+    """Start/stop OpenWebRX (the web-native receiver) as the chosen SDR application via the host
+    bridge, which runs the container and claims the single tuner. Longer timeout: `docker compose
+    up -d` may create the container on first start."""
+    if action not in ("start", "stop"):
+        return {"ok": False, "error": "action must be start or stop"}
+    try:
+        async with httpx.AsyncClient(timeout=130.0) as client:
+            r = await client.post(f"{BRIDGE}/owrx", json={"action": action})
+            return r.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        return {"ok": False, "error": f"SDR bridge unreachable: {exc}"}

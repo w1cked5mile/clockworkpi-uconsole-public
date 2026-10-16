@@ -10,11 +10,14 @@ anything still unverified.
 | [`aiov2_ctl.md`](aiov2_ctl.md) | Rail control, power monitoring, boot rails, RTC sync |
 | [`sdr-stack.md`](sdr-stack.md) | rtl-sdr tools, SDR++, calibration, airband listening |
 | [`adsb-tar1090.md`](adsb-tar1090.md) | ADS-B decode + map |
+| [`openwebrx.md`](openwebrx.md) | Web-native SDR receiver (waterfall + demod) — host container, tuner arbitration, profiles |
 | [`meshtastic.md`](meshtastic.md) | LoRa mesh node bring-up and region config |
 | [`gps.md`](gps.md) | gpsd, PyGPSClient, NMEA verification |
 | [`kismet.md`](kismet.md) | Passive Wi-Fi/BT survey — install, site config, capture-source notes |
 | [`aircrack-ng.md`](aircrack-ng.md) | Authorized WPA/WPA2 auditing — install, monitor-mode verification, workflow |
+| [`netexec.md`](netexec.md) | Authorized AD/network service auditing (SMB/LDAP/WinRM/…) — install, scope, workflow |
 | [`webdash.md`](webdash.md) | Operator dashboard — Docker install, aiov2_ctl bridge, first-run setup |
+| [`watchdogsgo.md`](watchdogsgo.md) | WatchDogsGo hacking-RPG frontend over the AIO recon stack — bridge mode, radio mapping, scope limits |
 
 Install order: `aiov2_ctl` → companion apps → per-app config from [`../configs/`](../configs/).
 The runbook that ties these together is

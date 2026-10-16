@@ -5,10 +5,35 @@ Skills committed here load automatically for any Claude Code session working in 
 | Skill | Purpose |
 |---|---|
 | [`hardware-project-repo/`](hardware-project-repo/SKILL.md) | Scaffold and drive a documentation-first hardware project repo — structure, sourced spec sheets, staged configs, bring-up acceptance checklists, budgets, order records, knowledge base |
+| [`diagnosing-bugs/`](diagnosing-bugs/SKILL.md) | Diagnosis loop for hard bugs: a tight, red-capable feedback loop first, then reproduce, hypothesise, instrument, fix with a regression test |
+| [`tdd/`](tdd/SKILL.md) | Test-first red → green in vertical slices, at seams agreed with the user; tuned for webdash's `unittest` suites |
+| [`grilling/`](grilling/SKILL.md) | Interview the user in rounds over a design tree until a plan has no silent assumptions; settled decisions go to `decisions.md` |
+| [`writing-for-agents/`](writing-for-agents/SKILL.md) | Reference for writing skills, subagent definitions and `CLAUDE.md`: context pointers, disclosure, completion criteria, pruning |
+
+## Third-party skills
+
+`diagnosing-bugs`, `tdd`, `grilling` and `writing-for-agents` come from
+[mattpocock/skills](https://github.com/mattpocock/skills) at commit `49dd158`
+(2026-10-09), under the MIT licence kept in [`LICENSE.mattpocock-skills`](LICENSE.mattpocock-skills).
+They were copied as editable files rather than installed as a plugin, so they don't update
+themselves; the other skills in that collection assume an issue tracker and a TypeScript toolchain
+this repo doesn't have.
+
+Changes from upstream, so a later re-sync can tell local edits from upstream ones:
+
+| Skill | Changed |
+|---|---|
+| all four | An **In this repo** section appended |
+| `diagnosing-bugs` | `GLOSSARY.md`/ADR pointer → `known-issues.md` and `decisions.md`; redaction list extended (PSKs, precise coordinates, others' captures); headless-browser loop points at `webdash/tools/render-check/`; cleanup records the cause in `known-issues.md` and `build-log.md` |
+| `tdd` | `GLOSSARY.md`/ADR pointer → curriculum glossary and `decisions.md`; the `codebase-design` and `code-review` skill references (not copied) replaced with a sentence and with the `web-ui-engineer`/`repo-audit` agents |
+| `writing-for-agents` | Description and opening also name subagent definitions |
+| `grilling` | None beyond the appended section |
+
+To compare with upstream: `gh api repos/mattpocock/skills/compare/49dd158...main`.
 
 ## Using it outside this repo
 
-Repository skills are scoped to the repository. To use this one on a new project:
+Repository skills are scoped to the repository. To use `hardware-project-repo` on a new project:
 
 ```bash
 # personal skill — available in every Claude Code session on this machine

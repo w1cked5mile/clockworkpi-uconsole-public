@@ -41,7 +41,7 @@ def kismet_control(action: str) -> subprocess.CompletedProcess:
     )
 # Read-only systemd state for the services webdash aggregates (learning-platform S2). Fixed list:
 # the route takes no arguments, so nothing a client sends reaches systemctl.
-SERVICES = ("readsb", "gpsd", "meshtasticd", "kismet")
+SERVICES = ("readsb", "gpsd", "meshtasticd", "kismet", "mesh-gps-bridge")
 SHOW_PROPS = "ActiveState,SubState,NRestarts,LoadState"
 
 
@@ -66,6 +66,25 @@ def service_states() -> dict:
             "crash_looping": active == "activating" and sub == "auto-restart",
         }
     return result
+
+
+# The radio's own record of what it tuned to, for cross-checking the frequency webdash computes
+# from config. Read from this boot's journal with a fixed command: the route takes no arguments.
+FREQ_RE = re.compile(r"Frequency set to ([\d.]+)")
+TXPOWER_RE = re.compile(r"Final Tx power: (\d+) dBm")
+
+
+def mesh_radio() -> dict:
+    out = subprocess.run(
+        ["journalctl", "-u", "meshtasticd", "-b", "-o", "cat", "--no-pager", "-n", "3000"],
+        capture_output=True, text=True, timeout=10,
+    )
+    freqs, powers = FREQ_RE.findall(out.stdout), TXPOWER_RE.findall(out.stdout)
+    return {
+        "ok": out.returncode == 0,
+        "freq_mhz": float(freqs[-1]) if freqs else None,
+        "tx_dbm": int(powers[-1]) if powers else None,
+    }
 
 
 def parse_status(text: str) -> dict:
@@ -99,6 +118,12 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/services":
             try:
                 self._json(200, {"ok": True, "services": service_states()})
+            except Exception as exc:  # noqa: BLE001
+                self._json(200, {"ok": False, "error": str(exc)})
+            return
+        if self.path == "/mesh-radio":
+            try:
+                self._json(200, mesh_radio())
             except Exception as exc:  # noqa: BLE001
                 self._json(200, {"ok": False, "error": str(exc)})
             return

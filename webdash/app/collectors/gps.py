@@ -69,8 +69,8 @@ async def collect() -> dict:
 
 
 def _age_s(iso: str | None) -> float | None:
-    """Seconds since gpsd's TPV timestamp. Needs a correct system clock — which, with no RTC
-    cell fitted, isn't guaranteed after an offline cold boot."""
+    """Seconds since gpsd's TPV timestamp. Needs a correct system clock — which, after an offline
+    cold boot, comes from the RTC (cell fitted 2026-10-10) and isn't guaranteed."""
     if not iso:
         return None
     try:

@@ -6,16 +6,16 @@ mode: guided
 est_minutes: 150
 requires: {rails: [SDR, GPS, LORA, USB], services: [readsb]}
 transmits: false
-world: "A ~2 h session on battery with GPS, mesh RX, ADS-B and a Wi-Fi survey all live, receive-only. This lab is POWER-GATED and must not be run until the battery path is verified: the fitted pack capacity-tested, OR the Meshnology pack fitted with JP1 soldered closed. As of the current build state the interim 18650 pair is unverified and JP1 is open, so do NOT run the battery session yet - compose the budget and design the session now, and run it once the gate is met. Abort immediately at 3.5 V. Outdoors, with the charger to hand."
+world: "A ~2 h session on battery with GPS, mesh RX, ADS-B and a Wi-Fi survey all live, receive-only. This lab is POWER-GATED; the gate is now met - the Meshnology pair is fitted with JP1 soldered closed (2026-10-11) and was discharge-tested (2026-10-13). Mind the measured floor: the device cuts power with no warning at ≈3.53 V under load and the fuel-gauge % is wrong, so run on voltage - plug in by 3.60 V, shut down by 3.55 V. Outdoors, with the charger to hand."
 steps:
   - id: gate
-    text: "POWER-SAFETY GATE. Do not proceed to the battery run unless the battery path is verified: EITHER the fitted pack has been capacity-tested and voltage-matched, OR the Meshnology LiPo is fitted with JP1 soldered closed and its PH2.0 polarity confirmed with a meter. The cell must be charged and the charger within reach. Attest the gate is met - if it is not, stop here and do the planning steps only."
-    check: {type: attest, prompt: "The battery path is verified (fitted pack capacity-tested, or Meshnology pack fitted with JP1 closed and polarity confirmed), the cell is charged, and I am ready to abort at 3.5 V."}
+    text: "POWER-SAFETY GATE. The battery path is verified (Meshnology LiPo fitted with JP1 soldered closed, 2026-10-11, and discharge-tested 2026-10-13). Before the run: the cell must be charged and the charger within reach, and you run on voltage because the % gauge is wrong - plug in by 3.60 V, shut down by 3.55 V. Attest you are set up and know the floor."
+    check: {type: attest, prompt: "The battery path is verified (Meshnology pack fitted with JP1 closed), the cell is charged, the charger is to hand, and I will plug in by 3.60 V and shut down by 3.55 V."}
   - id: compose
-    text: "Compose your power budget BEFORE unplugging: measured ~5.0 W idle floor + 0.64 W SDR rail + 0.29 W GPS rail + ~0.5-1 W readsb decoding + ~1-1.8 W AC1200 monitor. Paste your composed average draw in watts (it lands near 7-9 W) and, in your notes, the runtime you predict from ~31 Wh usable."
+    text: "Compose your power budget BEFORE unplugging: measured ~5.0 W idle floor + 0.64 W SDR rail + 0.29 W GPS rail + ~0.5-1 W readsb decoding + ~1-1.8 W AC1200 monitor. Paste your composed average draw in watts (it lands near 7-9 W) and, in your notes, the runtime you predict from the measured 52 Wh usable."
     check: {type: paste, parser: regex, pattern: '\b(?:7|8|9)(?:\.\d+)?\b', min_matches: 1}
   - id: charged
-    text: "Confirm the pack is charged before you start - aim for near full so the 2 h session has margin above the 3.5 V floor."
+    text: "Confirm the pack is charged before you start - aim for near full so the 2 h session has margin above the 3.55 V shut-down floor."
     check: {type: status, path: aiov2.power_num.capacity_pct, op: gte, value: 90}
   - id: on-battery
     text: "Unplug from AC so the whole session runs on battery. The dashboard should show it is now on battery."
@@ -35,7 +35,7 @@ steps:
     check: {type: status, path: net.monitor_ifaces, op: gte, value: 1}
     timeout_s: 120
   - id: session
-    text: "Run the session for ~2 hours with all four stations live, screen as you would use it in the field. The dashboard records the mean draw across the window. WATCH THE VOLTAGE - abort at 3.5 V. This step records the measured mean power over the 2 h window for you to compare against your composed estimate."
+    text: "Run the session for ~2 hours with all four stations live, screen as you would use it in the field. The dashboard records the mean draw across the window. WATCH THE VOLTAGE - plug in by 3.60 V and shut down by 3.55 V (the device cuts out with no warning at ≈3.53 V). This step records the measured mean power over the 2 h window for you to compare against your composed estimate."
     check: {type: computed, fn: mean, path: aiov2.power_num.power_w, window_s: 7200, op: gte, value: 5.0, save_as: session_mean_w}
     timeout_s: 7800
   - id: reflection
@@ -44,13 +44,13 @@ steps:
 restore:
   - {type: status, path: aiov2.power_num.on_battery, op: eq, value: false}
 safety_stops:
-  - {type: status, path: aiov2.power_num.voltage_v, op: lte, value: 3.5}
+  - {type: status, path: aiov2.power_num.voltage_v, op: lte, value: 3.6}
 evidence: [aiov2.power_num.power_w, aiov2.power_num.voltage_v, aiov2.power_num.capacity_pct]
 ---
 
 The shakedown is a measurement, not a demonstration. The checks confirm you ran a real ~2 h battery
 session with all four stations live and recorded the mean draw; the capstone itself is the reflection -
 setting what your budget predicted beside what the session measured, and accounting honestly for the
-gap. The power gate is real and current: the fitted 18650 pair is unverified and JP1 is open, so the
-battery run waits until that is resolved. Compose the budget and design the session now; run it when the
-gate is met, outdoors, with the charger to hand and 3.5 V as the hard stop. Receive-only throughout.
+gap. The power gate is met: the Meshnology pair is fitted with JP1 soldered closed (2026-10-11) and was
+discharge-tested (2026-10-13, 52.2 Wh to a hard cut at ≈3.53 V). Run it outdoors with the charger to
+hand, on **voltage** not the % gauge: plug in by 3.60 V, shut down by 3.55 V. Receive-only throughout.

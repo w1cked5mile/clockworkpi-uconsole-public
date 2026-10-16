@@ -2,6 +2,830 @@
 
 Dated journal of what was done. Newest entries at the top. Link photos in [`../../images/`](../../images/).
 
+## 2026-10-15 — webdash sparklines
+
+- **What:** 2 h sparklines from `GET /api/history`. CPU temperature and battery voltage are on the
+  Overview tiles. CPU %, temperature, voltage and power draw are on the System and Power views.
+  Hover or tap reads the nearest sample's value and age. Below 3.60 V on battery the voltage end dot
+  turns to the warning colour (3.55 V: error), matching the status strip. Spec:
+  [`webdash-design.md`](../reference/webdash-design.md#sparklines).
+- **How:** `spark.js` fetches history every 30 s and draws inline SVG in the visible view only, from
+  `tick()` in `main.js`. Styles use theme tokens only. The render harness's fetch stub gained a
+  synthetic `/api/history`.
+- **Checked:** `render-view.sh` for overview, system and power, in both skins. The overview still
+  fits 1280×480 with no scroll. A scratch harness covered the low-voltage dot, an empty series and
+  a crosshair surviving a redraw. A range bug (voltage shown as "4.0–4.1") was found and fixed from
+  the renders. **Not yet checked:** the device's own screen, a phone, and live data after a
+  container rebuild.
+
+## 2026-10-15 — OpenWebRX refuses to start with the USB rail on, after a hard power loss
+
+- **What happened:** hard power loss at 18:53:07Z with the `openwebrx` container running (up since
+  18:10:19Z; its `jt9` decoder started at 18:52:08Z). Last PMIC sample was Charging, 3.92 V,
+  `throttled=0x0`. The owner reports it as another over-voltage shutdown, with the USB rail on. That
+  rail state isn't in the journal (*unverified*). Details and candidates:
+  [`known-issues.md`](known-issues.md).
+- **Change:** `set_owrx("start")` in `webdash/host-helpers/sdr-bridge.py` reads the aiov2 bridge's
+  `/status` and refuses (409) if the USB rail is on or its state is unknown. Stop is never gated.
+  The webdash `/api/sdr/owrx` route passes the 409 through, and the Receiver tab disables **Start
+  receiver** with the reason while `aiov2.rails.USB.on` is true.
+- **Tests:** `tests/test_sdr_bridge.py` gains a stub aiov2 status server (so the owrx tests no
+  longer read Fancy's real rails) and three cases: refused with the rail on, refused when the state
+  is unknown, and stop allowed with the rail on. 14/14 pass on the host.
+- **Verified on the device:** after `sudo systemctl restart sdr-bridge` and a container rebuild,
+  `POST 127.0.0.1:8767/owrx start` with `aiov2_ctl USB on` returned **409** "USB rail is on…", with
+  `busy` still `null` and no container started. With the USB rail off the check passed and start
+  stopped at the next check ("SDR device not found", SDR rail off). USB rail left off. The webdash
+  route still auth-gates (401). The UI button state isn't checked in a browser yet.
+- **Battery note:** at 19:00Z Fancy was on battery at 3.68 V, 1.7 A.
+
+## 2026-10-15 — webdash stops ADS-B before cutting the SDR rail (crash-loop guard)
+
+- **What:** turning the SDR rail **off** from the dashboard now stops ADS-B (readsb) first, then cuts
+  the rail, so power drops on an idle tuner instead of one readsb is mid-use of.
+- **Why:** readsb crash-looped when the rail went off under it — systemd restarted it straight into a
+  missing dongle (~340 restarts in the 2026-10-09 run). See [`known-issues.md`](known-issues.md).
+- **How:** `api_set_rail` in `app/main.py` calls `sdr_hunt.set_adsb("stop")` when
+  `feature == "SDR" and state == "off"`, best-effort (the bridge returns an error dict rather than
+  raising; the rail is cut regardless). OpenWebRX is `restart:"no"`, so it errors but never thrashes
+  and is left for the user to stop. No bridge or systemd change.
+- **Scope / still open:** this covers the **dashboard** rail toggle. A CLI `aiov2_ctl SDR off` still
+  bypasses it — capping `StartLimitBurst` on the readsb unit (a systemd drop-in) would cover that
+  path. **Not yet confirmed on hardware:** the code parses, the container rebuilds healthy and the
+  rail route still auth-gates (401), but the no-restart-storm behaviour needs an on-device check
+  (toggle SDR off mid-ADS-B, watch the journal). Tracked in [`../../TODO.md`](../../TODO.md).
+
+## 2026-10-15 — webdash-design.md brought back in line with what shipped
+
+- Doc accuracy (design-team backlog item 3). `webdash-design.md`'s status line claimed "phases 4–8
+  not built", but the learning layer (successor to phases 7–8) shipped 2026-09-25 and the redesign
+  has run well past it. Updated the status line to point at
+  [`../reference/webdash-design-team.md`](../reference/webdash-design-team.md) as the live status,
+  corrected the "Progress is stored per browser in `localStorage`" claim to **server-side SQLite**
+  (the per-browser plan was superseded; only the skin/tab conveniences still use `localStorage`), and
+  marked the Open-decisions "Progress storage" row resolved. `learning-platform-plan.md`'s status line
+  was already accurate. No code change.
+
+## 2026-10-15 — webdash low-voltage warning, and the fuel-gauge % de-emphasised
+
+- **What:** webdash now warns on pack voltage, the trusted low-battery signal on this build (the
+  fuel-gauge % is wrong — the device tree describes a different capacity). On battery, the status
+  strip (visible on every view) and the Power tile read **`⚠ charge now`** at ≤3.60 V (amber) and
+  **`⚠ shut down`** at ≤3.55 V (red); the Power view gains a voltage-derived **Charge** row and its
+  **Capacity** row is now captioned "gauge unreliable on this pack; watch voltage". Thresholds from
+  CLAUDE.md / [`../reference/power-budget.md`](../reference/power-budget.md) (plug in by 3.60 V, shut
+  down by 3.55 V). The warning carries a word as well as colour, so it is not colour-only (Q4).
+- **Why:** the open blocker — the device cuts out at ≈3.5 V with no warning and the fuel gauge reads
+  100 % to the end. A glanceable voltage warning is the software half of that; the persistent
+  on-device auto-shutdown *guard* is still open ([`TODO.md`](../../TODO.md)).
+- **How:** a `voltageState()` helper in `views.js` reads `aiov2.power_num.{voltage_v,on_battery}`;
+  `renderStrip`/`renderTiles`/`renderPower` use it. New `.strip-item.low`/`.crit` CSS tokens
+  (`--warn`/`--err`). No collector or bridge change — the fields already existed.
+- **Verified** with the new render harness: rendered the overview, Power tile and Power view at a
+  forced 3.54 V fixture and confirmed the red `⚠ shut down` strip, the tile caption, the Charge row
+  and the Capacity caveat; normal 3.97 V fixture shows no warning. Container rebuilt and healthy;
+  `test_survey` passes; `audit.py` clean. See [`known-issues.md`](known-issues.md).
+
+## 2026-10-14 — webdash render harness: QA can finally see every view
+
+- **What:** `webdash/tools/render-check/render-view.sh` (+ `view-harness.html`, `fixture-status.py`)
+  screenshots **any** dashboard view headless — overview, the four Wi-Fi tabs, the four SDR tabs,
+  GPS/power/system/mesh — at any viewport and in either skin. Before this, `render-check` could only
+  render `#/timeline`; every other view had no rendered-QA path, so design reviews were code/token
+  readings, not looks at the real page (design-team backlog item 2).
+- **How:** it runs the **real** `main.js` with the network neutralized — a fake `WebSocket` that
+  opens, delivers one fixture status snapshot and never closes (defusing the forever-reconnect loop
+  that hangs the live app headless), and a fake `fetch` that serves fixtures for the boot `/api/*`
+  calls. Staged like `render-actuator.sh`: `js/`+`styles.css` symlinked, `<header>`+`<main>` copied
+  out of `index.html` at render time so they can't drift, screenshotted under `--virtual-time-budget`.
+  `fixture-status.py` is a hand-authored snapshot (a fixture, not live data; invented grid-only
+  location) whose mesh transmit copy is built from the real `mesh_radio.py`.
+- **Verified on device:** rendered non-blank, correct screens for overview, `wifi` + all four Wi-Fi
+  tabs, `sdr/adsb`, `sdr/hunt`, `mesh`, `gps`, `power`, `system` at 1280×480, plus the `vintage`
+  skin — which **retroactively supplies the rendered QA the Wi-Fi tab work (2026-10-14) couldn't have
+  when it landed**: the tab strip, the single shared USB switch, the 🔒 on the WPA heading and the
+  allowlist all render as designed. Unit suites, `learn-compile --check`, link check and `audit.py`
+  all clean. The tool is dev-only (not baked into the container), so no rebuild.
+- **Known gap:** `#/learn` renders only the "compile the curriculum" panel — learning content comes
+  from the mounted bundle, not `/static`, so the offline fixture reports it unavailable. Pointing the
+  fetch stub at a dumped bundle would cover the learning pages; left as a follow-up.
+
+## 2026-10-14 — Wi-Fi view: all four Wi-Fi tools folded into tabs
+
+- **What:** the Wi-Fi view (`#/wifi`) is now tabbed like the SDR view — **Kismet · Site survey ·
+  Packet capture · WPA audit** at `#/wifi/{kismet,survey,capture,wpa}`, bare `#/wifi` opening Kismet
+  and the transmitting WPA audit last. The site survey, packet capture and WPA audit stopped being
+  standalone routes; the overview's **Bench row is removed** — everything Wi-Fi now lives under
+  `#/wifi`. (Done in two steps the same day: survey + WPA first, then packet capture folded in too at
+  the owner's follow-up.) See [`../../software/webdash.md`](../../software/webdash.md) and
+  [`../reference/webdash-design.md`](../reference/webdash-design.md) (new "Wi-Fi tabs" section).
+- **Why:** arrangement only — all Wi-Fi work runs on the one USB-rail accessory radio, so it reads
+  as one station. Single-panel-at-a-time also fits the 480 px height better than the old full-page
+  survey/WPA views.
+- **How:** `<nav class="wifi-tabs">` of plain `<a>` links with `aria-current` (not APG `role=tab`),
+  four `role="region"` panels in one shared `.panel`, one shared `.panel-foot` USB rail switch on
+  every tab (down from the per-view switches). `#/survey`, `#/capture` and `#/wpa` redirect in place
+  (`history.replaceState`) to the matching tab, so old bookmarks and the `station: wpa`/`survey`
+  Learn links keep resolving. The survey/capture/WPA panel markup moved byte-identical; the WPA panel
+  keeps its `<h2>` "authorized equipment only", the red warning and "Authorize BSSID". Packet capture
+  syncs from the status snapshot, so `syncTshark` now runs on the `wifi` route instead of a `capture`
+  route. `.wifi-tabs` reuses the `.sdr-tabs` CSS tokens (contrast already measured in both skins).
+- **Run through the webdash design team** (pipeline in
+  [`../reference/webdash-design-team.md`](../reference/webdash-design-team.md)): QA as-built evidence
+  → creative-director (naming: tab 1 is "Kismet" not "Scan"; 🔒 on the WPA `<h2>`, not the tab) →
+  design-planner (IA) → senior-rf-engineer (**Q9: the allowlist gate is arrangement-independent —
+  verified across `capture.py`, `wpa-audit-bridge.py` and `wpa-capture.sh`; no blocker**) →
+  web-ui-engineer (spec + code review) → `/security-review` (no findings).
+- **Verified on device:** container rebuilt and healthy (`/api/health` ok); in-container
+  `test_survey` (28) and `test_learn` (32) pass; `learn-compile --check` ok; link check and
+  `audit.py` clean; all JS modules parse. USB rail switches in `index.html` dropped 5 → 3 (overview
+  tile + one shared Wi-Fi foot + power view).
+- **Unverified:** rendered-page QA at the three viewports — `render-check` still can only mount
+  `#/timeline` (the live app hangs headless on the status WebSocket), so the tab strip, keyboard
+  traversal and the single-panel height fit were reviewed from markup/CSS, not screenshotted. A
+  fixture-status harness that can mount an arbitrary `data-view` (design-team backlog item 2) would
+  close this; it is the command that settles the Q1/Q4 checks here.
+
+## 2026-10-14 — OpenWebRX: a web-native receiver as the fourth SDR tab
+
+- **What:** installed OpenWebRX (web SDR receiver — live waterfall + tunable demod) as the fourth
+  application behind **SDR → Receiver**, sharing the one RTL-SDR with ADS-B, Hunt and Listen.
+  Receive-only. See [`../../software/openwebrx.md`](../../software/openwebrx.md).
+- **How it runs:** its own host Docker container (`jketterl/openwebrx:stable`, arm64, v1.2.2), the
+  RTL-SDR passed through as raw USB, bound to `127.0.0.1:8073`, `restart: "no"` so it never
+  auto-starts and grabs the tuner. Compose + seed config in
+  [`../../configs/openwebrx/`](../../configs/openwebrx/). The webdash host bridge starts/stops the
+  container on demand (bridge user is in the `docker` group — no sudo).
+- **Tuner arbitration:** the bridge gained a fourth busy state `owrx`, symmetric with ADS-B —
+  starting the receiver needs a free tuner and is refused while Hunt/Listen/ADS-B hold it; those
+  three are refused while the receiver runs. The reservation is on the container running (OpenWebRX
+  opens the dongle lazily, only when a browser tunes), and a container started outside the bridge is
+  still honoured (the claim paths consult live container state). New tests
+  `test_owrx_claims_the_tuner_and_blocks_listen` and `test_owrx_refused_while_a_listen_holds_the_tuner`.
+- **Routing:** `tailscale serve --https=8073`, added to `/api/links` as `openwebrx`, opened from the
+  tab in a new tab — same posture as Kismet (its own login, tailnet-only; the owner is the sole
+  tailnet member). Viewing the receiver needs no login; only Settings does.
+- **Profiles:** OpenWebRX ships no SDR device by default, so a seed config
+  ([`../../configs/openwebrx/settings.json`](../../configs/openwebrx/settings.json)) defines the
+  RTL-SDR with FM / airband / NOAA / 2 m / 70 cm profiles at 2.048 MS/s. Two profiles' start
+  frequencies were initially outside their ~2 MHz window (logged "start_freq … out of range"); fixed.
+- **Verified on hardware:** container starts and serves HTTP 200 on 8073; the bridge reports
+  `busy=owrx` while up and `None` after stop; the RTL re-enumerates free after stop; config loads
+  with no "out of range" warnings; webdash image rebuilt and recreated so the fourth tab is live
+  (served `sdr.js` carries the Receiver controls). **Still owner-confirmed by eye:** opening the
+  receiver and seeing a live waterfall with signal, and the one-time admin-user creation
+  (`docker exec -it openwebrx openwebrx admin adduser <name>` — password set by the owner, stored in
+  the container volume, off-repo). Left in a clean baseline: receiver stopped, tuner free.
+
+## 2026-10-14 — webdash: a spectrum graph and waterfall on the SDR Hunt tab
+
+- **What:** the Hunt sweep already ran `rtl_power` across a band and listed the peaks; it now also
+  draws the sweep. The host bridge keeps the full bin trace (every `(freq, dB)` plus the median
+  noise floor and the +6 dB detection threshold) and returns it in the existing `/hunt/status`
+  response as `trace` — no new endpoint, no new tuner mode, still one-shot and receive-only. The
+  page draws a power-vs-frequency line with the floor/threshold reference lines and the strongest
+  peaks marked, plus a waterfall that stacks each sweep you run (newest on top, resets when the
+  band changes). Colours are read from the CSS theme tokens so the skins carry through.
+- **Why:** turn the abstract peak table into the picture — see where a station sits above the
+  floor and how the band looks between the peaks. Chosen as the cheap option (reuses the sweep the
+  tab already produces) over a live streaming FFT or proxying a web SDR.
+- **Files:** `webdash/host-helpers/sdr-bridge.py` (factored `_rtl_power_bins`, added `sweep_trace`,
+  threaded a `trace` field through `_set_state`/`_run_hunt`), `webdash/app/static/js/sdr.js`
+  (`drawSpectrum`/`drawWaterfall`/`renderSpectrum`), `index.html` (the `<figure>` with two
+  canvases), `styles.css`, and `webdash/tests/test_sdr_bridge.py` (a `SweepTraceTest` covering the
+  trace shape and that the peak list and trace agree).
+- **Verified:** the full webdash suite passes (the one `test_mesh_places` error under `unittest
+  discover` is pre-existing on `main`, unrelated), `learn-compile --check` ok, audit clean, links
+  clean, `node --check` on the JS ok. **The bridge path is verified on the live tuner:** after
+  restarting `sdr-bridge`, a real FM sweep returned a 264-point `trace` (floor 3.9 dB, threshold
+  9.9 dB, 88–108 MHz). The **in-browser rendering** is still owner-confirmed by eye — run a Sweep
+  on the Hunt tab and check the graph and waterfall draw.
+- **Deploy (2026-10-14):** the new graph wasn't visible at first because nothing was deployed —
+  the `sdr-bridge` service was running pre-change code (restarted, now emits `trace`) and the
+  webdash container serves a **baked** copy of `app/`. As a stopgap while there was no registry
+  egress, the three changed static files were copied into the running container with `docker cp`.
+  Once network was back the image was properly rebuilt (`docker compose build`, `COPY app ./app`
+  ran fresh) and the container recreated (`docker compose up -d`) from it, so the change is now
+  baked in and survives a recreate/`down` — the `docker cp` hotfix is superseded. The app serves
+  the new `sdr.js` and the bridge emits `trace`. Browser needs a hard refresh to drop the cached
+  JS/CSS.
+
+## 2026-10-13 — Recharge after the discharge: the charge-current ADC over-reads (≥~1.4×)
+
+- **What:** charged the pack back up straight after the discharge above, logging the PMIC once a
+  minute as before. The charger came on at the 04:29:50Z boot; the logger caught it from
+  **04:51:02Z** (3.991 V, 1.72 A, gauge 57 %) and ran to **20:26:23Z** (4.235 V, 0.40 A, gauge
+  99 %). The owner called it full there — the PMIC never flipped to `Full`, because the second
+  charge source current-limits below the PMIC's termination (see below), so the final taper is cut
+  short rather than completed. ~15.6 h logged (≈16 h of wall-clock charge counting the ~20 min
+  before the logger started).
+- **Two charge sources** (owner), with a clean step between them at 13:35:30Z:
+  - **04:51–13:35Z — USB-C port on the laptop "Royal Fortune":** avg **1.70 A**, holding 4.1–4.27 V.
+  - **13:36–20:26Z — Apple iPad USB-C wall charger:** avg **0.59 A**. This is the slower source,
+    which is backwards for a wall charger. The uConsole only takes 5 V, so it can't use the
+    charger's higher-voltage PD modes; what limits it to ~0.6 A (this charger, or the input
+    negotiation) is not established. Model and rating not recorded. The 13:35Z step — current
+    1.56→0.76 A, voltage 4.27→4.17 V in one sample — was this swap, not a pack dropping out (the
+    earlier dropout reading was withdrawn).
+- **Thermal:** PMIC die stayed low throughout; the owner checked the pouches by hand that evening —
+  **cool, not puffed**, on both charge and the preceding discharge.
+- **Coulomb count doesn't close — the charge ADC overreads.** Integrating `current_now`:
+
+  | Phase | Ah "in" | Wh "in" |
+  |---|---|---|
+  | Royal Fortune USB-C (8.7 h @ 1.70 A) | 14.9 | 61.9 |
+  | Apple iPad charger (6.8 h @ 0.59 A) | 4.0 | 17.0 |
+  | **Total logged** | **18.9 Ah** | **78.9 Wh** |
+
+  18.9 Ah "in" against the **13.8 Ah measured out** on the discharge just before is the firm bound: a
+  recharge can't put in less than the previous discharge removed, and the pack didn't start empty (it
+  rebounded above the ≈3.53 V cut and had ~20 min of unlogged charge first) and charging is lossy — so
+  the real charge took well under 13.8 Ah, and **the charge-current ADC over-reads by more than
+  ~1.4×** (18.9 / 13.8). How much more isn't established: a 2× factor is plausible but **unconfirmed**
+  — the tempting "impossible for 57 %→99 % of a 74 Wh pack" argument leans on the fuel-gauge %, which
+  this build knows is wrong, so it can't pin the factor. The discharge integral is physically
+  plausible and the charge one isn't, so the charge path is the suspect — but no independent
+  instrument has confirmed *either* ADC. The in-vs-out "gap" is an instrument artifact, not a real
+  coulombic loss — do not quote a charge efficiency from these two runs.
+- **Consequence for the charge-time estimate:** the ~10 h "cut to `Full`" estimate was built on
+  those same current readings, so it is unreliable in the same direction. What is solid is the
+  wall-clock: from a near-empty cut, the laptop port alone did the bulk of the refill in ~8.7 h and
+  the slow wall charger stretched the tail; budget **most of a day on the slow charger, roughly
+  half that on Royal Fortune's port** *(one run, confounded by the source swap)*.
+- **Data (off-repo):** `~/.local/state/clockworkpi-uconsole/charge-20261013/` on Fancy:
+  `samples.csv` (936 data rows, 04:51:02Z→20:26:23Z, no NUL tail this time — clean logger stop, not
+  a power cut; SHA-256 `e77e01a322fd33171fcbb333ae4ed28e2bda2804adeb33746b51d767d3d6ed93`),
+  `events.log` (SHA-256 `e25c978b25ab87c324fe810e77b775fcf7dd0246ededdbec7992383665bf286b`), and
+  `log-charge.sh`. The logger ran as the transient unit `charge-log-20261013` (user scope), stopped
+  20:27Z.
+- **Next:**
+  - [ ] Settle the charge-current ADC scale: compare `current_now` on charge against the input
+    current measured at the USB-C supply, and against `constant_charge_current` (1.95 A). The over-read
+    is ≥~1.4×; pin the real factor, and check whether the 52 Wh discharge figure needs a matching
+    correction (the discharge ADC isn't independently confirmed either).
+  - [ ] Find why the Apple iPad charger only delivers ~0.6 A at 5 V (charger PD behaviour vs the
+    mainboard's input negotiation).
+
+## 2026-10-13 — NetExec installed for authorized AD/network auditing
+
+- **What:** installed NetExec (CrackMapExec's successor) for owner-authorized network service
+  auditing. Scope recorded by the owner: **own networks, documented engagements, and CTFs only** —
+  the same gated exception to the passive-wardriving posture as [`aircrack-ng`](../../software/aircrack-ng.md).
+- **How:** from the project Git repo via `pipx` (no PyPI package exists). Needed a Rust toolchain
+  for the `aardwolf` RDP dependency: `sudo apt install -y pipx git rustc cargo build-essential
+  python3-dev libffi-dev libssl-dev`, then `pipx install git+https://github.com/Pennyw0rth/NetExec`.
+- **Verified on hardware:** `nxc --version` → **1.5.1 — Yippie-Ki-Yay — 28e58512 — 1011**, Python
+  3.13.5. First run created `~/.nxc/` (config, per-protocol workspace DBs, and `logs/{sam,lsa,ntds,dpapi}`
+  loot dirs). Binaries `nxc`/`netexec`/`nxcdb` linked into `~/.local/bin`.
+- **Notes:** all state lives under `~/.nxc/` in `$HOME`, outside the repo tree — loot stays off the
+  device/repo per [`../../CLAUDE.md`](../../CLAUDE.md). Setup: [`../../software/netexec.md`](../../software/netexec.md).
+
+## 2026-10-13 — First discharge of the Meshnology pair: 52.2 Wh in 13.7 h, then a hard cut at ≥3.53 V
+
+- **What:** Fancy ran on the fitted Meshnology Y-harness pair from **14:43:52Z 2026-10-12** until it
+  lost power at **04:26:45Z 2026-10-13**. It came back on the charger and booted at 04:29:50Z
+  (RTC set the clock, no power-loss flag). The per-minute PMIC logger started for the 2026-10-11
+  charge was kept running as the discharge test at the owner's request (15:14Z). A low-voltage
+  guard was started at 15:20Z: three samples below 3.45 V, 20 s apart, trigger a clean poweroff.
+- **Start state:** charger removed **before `Full`**. The pack had been in constant-voltage taper
+  since at least 13:11Z (4.217 V / 0.44 A), and the last on-charge sample read 4.233 V / 0.37 A. So
+  it was near full, but not to the PMIC's own termination. The back panel and heat sinks were
+  fitted about then.
+- **Load:** Kismet on the AC1200 (monitor mode) from 15:17Z to the end, fed by `gpsd`;
+  `mesh-gps-bridge` running. Whether `meshtasticd` was running is not in that boot's journal (the
+  unit is `disabled` and is active on the next boot). GPS and LoRa rails on (boot default); SDR rail off from 15:22Z
+  (`readsb` stopped first, so no restart loop this time); USB rail **on**, inferred because the
+  AC1200 is powered from it and Kismet captured on it all run. Desktop idle,
+  `swayidle` blanking the display after 600 s. `learn-sync` (every 15 min) and `wigle-upload`
+  (hourly) timers ran throughout. The first 40 min had `readsb` and owner activity, peaking at
+  7.5 W.
+- **Data (off-repo):** `~/.local/state/clockworkpi-uconsole/charge-20261011/` on Fancy:
+  `samples.csv` (915 good rows, 13:11:50Z 2026-10-12 to 04:26:13Z 2026-10-13, plus one line of NUL
+  bytes at the end written by the power cut; SHA-256
+  `c467fc7f55b2f9d080b5d98fb1af48f5159275a60e0d9499e8f5be4af74a4e2b`), `events.log` (SHA-256
+  `3363ba151b1d37b7a4299f5f9852d3cf23549d69e71f4c5c9858ada44147f044`), and the two scripts
+  `log-charge.sh` and `low-voltage-guard.sh`. The 2026-10-11 charge samples from 22:50Z were not
+  kept: the clean reboot at 03:24Z 2026-10-12 ended that logger, and it was restarted at 13:11Z.
+- **Result:**
+
+  | Measure | Value |
+  |---|---|
+  | Delivered to the cut (trapezoid, 823 samples, no gaps) | **13.81 Ah / 52.21 Wh in 13.71 h** |
+  | Average draw at the cell | **3.81 W / 1.01 A** |
+  | Idle floor (581 samples after 15:35Z) | **3.37 W median**, p10–p90 3.28–3.54 W, 0.88 A |
+  | High-draw episodes (190 samples) | 4.6–5.4 W, 1.28 A median |
+  | Step at each high-draw edge | **+2.07, +2.01, +2.04, +2.11 W** (18:17, 20:43, 00:37, 01:42Z); ~9-min episodes |
+  | Loaded voltage by energy delivered | 10 Wh 3.909 V · 20 Wh 3.880 · 30 Wh 3.768 · 40 Wh 3.622 · 50 Wh 3.559 · end 3.526 V |
+  | Last sample | 04:26:13Z: **3.526 V, 1.268 A, gauge 49 %**, slope −1.2 mV/min over the last hour |
+  | End | Journal stops mid-stream at 04:26:45.76Z (a `learn-sync` run had just finished); **no shutdown sequence**. The guard logged nothing |
+  | Fuel gauge | **99 % from 13:11Z to 01:49Z** (≈40 Wh delivered), then 99 → 49 % in 2.7 h |
+
+- **Reading:**
+  - **The pair is good for ≥52 Wh**, about 70 % of the 74 Wh nominal, delivered at a mean of
+    3.8 W. That is **7.8× the retired 18650 pair** and ≈13.7 h of real use. It replaces the
+    "≈62 Wh usable, *estimate*" in `power-budget.md`.
+  - **The pack was probably not empty.** The 18650 run showed a clear knee (−11 mV/min) before its
+    cut; this one fell only 1.2 mV/min in its last hour. At ≈3.53 V under 1.27 A, a 1S LiPo usually
+    has some charge left (*estimate*; how much depends on the pair's internal resistance, which is
+    unmeasured). So the energy is set by **where the system cuts out, not by the cells**.
+  - **Both packs cut at about 3.5 V under ~1.25 A load** (18650s at 3.49 V, this pair at ≥3.53 V).
+    Two different packs giving the same cut-off points at something on the system side. The device
+    tree's `voltage-min-design-microvolt` is **3.3 V** (`/proc/device-tree/battery@0`), the value
+    the AXP's power-off threshold is normally set from (*unverified* here). To reach 3.3 V from
+    3.53 V needs a ≈0.23 V transient dip, ≈2 A extra at ≈0.1 Ω; the timing next to `learn-sync`
+    fits a CPU burst, but nothing confirms it. Other candidates are the 5 V boost's undervoltage
+    lockout and the pack's protection board. Which one it was is **unverified**.
+  - **The guard at 3.45 V could never have fired**: the device died 0.08 V above it.
+  - **The fuel gauge is wrong for this pack.** The device tree describes a **6.7 Ah / 24.79 Wh**
+    battery (`charge-full-design-microamp-hours = 6700000`). Fifty points in ≈3.4 Ah matches that
+    6.7 Ah size, not this ≈20 Ah pair (that link is *inferred*). It sat at 99 % for most of the run
+    and read 49 % at the cut.
+  - **Unexplained +2 W episodes.** Four ~9-minute steps of +2.0–2.1 W, then ≈+1.1 W from 02:07Z
+    to the cut, together ≈0.4 W of the 3.81 W average. **Not the screen:** the owner reports it
+    was off and Fancy unused all night (10:4xZ). A first draft blamed the display waking (the steps
+    resembled the 600 s blank timeout); that was wrong and is withdrawn. The cause is *unknown*.
+    - Nothing in that boot's journal lines up with the edges.
+    - The per-minute `throttle-mon` samples (SoC temperature, throttle flags, from
+      `throttle-sample.timer`) would show a CPU burst. But that boot's journal holds only ~1000
+      entries, almost all from the user session, with no `throttle-mon` and no kernel lines.
+      They were probably lost with the system journal in the hard power cut (*unverified*).
+    - Next run: log CPU load per minute alongside the PMIC (`/proc/loadavg`, top process).
+  - **The AC1200's monitor-mode cost looks smaller than estimated.** The whole idle system, screen
+    off with Kismet running, was 3.37 W.
+- **After the reboot (04:3xZ):** charging at 1.45–1.50 A, 3.92 V, gauge 50–51 %.
+  `aiov2_ctl --status` shows **all four AIO rails on**, although `--boot-rails-status` says SDR and
+  USB are off at boot. Cause not checked.
+- **Photos:** none.
+- **Next:**
+  - [x] Owner: the screen was off and Fancy unused all night, so the steps are not the display.
+  - [ ] Find the +2 W episodes: log CPU load next to the PMIC on the next battery run.
+  - [ ] Find what cuts the power near 3.5 V. Read the AXP's power-off voltage setting and test the
+    cut point on the bench supply, or run again with the guard at ≥3.58 V.
+  - [ ] Run the guard as a persistent service at **≥3.58 V** (≈45 min of warning at 1.26 A in this
+    run). At 3.45 V it is dead code.
+  - [x] Log a charge from here — done 2026-10-13 (see the recharge entry above). It never reached a
+    true `Full`, and showed the charge-current ADC over-reads (≥~1.4×), so the ~10 h estimate is withdrawn.
+  - [ ] Check why all four AIO rails are on after this boot.
+
+## 2026-10-11 — Meshnology pair fitted and charging; the 4.48 V was the meter
+
+- **What was done (owner):** after the board mod in the entry below (18650s out, holder removed,
+  `JP1` closed), the Meshnology Y-harness pair was connected, before the boot at **22:37:50Z**.
+  The board now takes only the JST pack: don't refit 18650s with `JP1` closed.
+- **PMIC on this boot** (`/sys/class/power_supply/axp20x-battery`):
+
+  | UTC | `voltage_now` | `current_now` | `capacity` | `status` |
+  |---|---|---|---|---|
+  | 22:50:20Z | 3.974 V | 1.662 A | 41 % | Charging |
+  | 22:50:30Z | 3.975 V | 1.673 A | 41 % | Charging |
+  | 22:50:40Z | 3.971 V | 1.634 A | 41 % | Charging |
+
+  A per-minute log was started to run until `Full`. It became the discharge test instead: see
+  2026-10-13 above (its samples from this boot were lost to the 03:24Z reboot).
+- **Owner's Greenlee DM-20, same evening:**
+
+  | What | DM-20 | Reference | Meter minus reference |
+  |---|---|---|---|
+  | Each removed 18650 cell, at rest | 4.3 V | PMIC 4.202 V on charge at 20:59Z, so ≈4.15–4.20 V at rest (*estimate*) | ≈ +0.1 to +0.15 V |
+  | Meshnology pins, connected and charging | **4.8 V** | PMIC 3.97 V, same terminals, same time | **≈ +0.8 V** |
+
+- **Reading:** the PMIC is right and the DM-20 is not. A pack really at 4.48–4.8 V couldn't take
+  a constant 1.65 A at a 3.97 V terminal: the AXP charges to 4.20 V, and under charge the terminal
+  sits *above* rest voltage. The meter's error also differs between the two readings (+0.1 V vs
+  +0.8 V), so it can't be corrected with a fixed offset. A weak 9 V battery in the meter is the
+  usual cause of high, drifting readings (*unverified*). The earlier **4.48 V on the Meshnology
+  packs** came from the same meter and is now treated as a meter error. See
+  [`known-issues.md`](known-issues.md).
+- **Owner:** the pouches are **not even warm** while charging at ≈1.65 A.
+- **Still not done:**
+  - [ ] Meter battery replaced, or a second meter used, to confirm the pack voltage independently.
+  - [ ] Pouches checked for puffing (the warmth check passed).
+  - [x] Full discharge test: done 2026-10-13, 52.2 Wh (entry above). The charge was stopped before
+    `Full`; a logged charge to `Full` is still open.
+  - [x] Fuel gauge re-checked over a full cycle, 2026-10-13: still wrong (entry above).
+
+## 2026-10-11 — NVMe battery board: 18650 holder removed, `JP1` soldered closed
+
+- **What (owner):** removed the dual-18650 holder from the HackerGadgets NVMe battery board and
+  soldered `JP1` closed, preparing the board for the Meshnology 1S LiPo on the JST connector.
+- **Photos:** [`../../images/assembly/README.md`](../../images/assembly/README.md) (2026-10-11).
+  Photo readings: the `BAT1`/`BAT2` outline is empty with four tinned pad remnants, and `JP1`'s pads
+  appear bridged.
+- **`JP1` location, now recorded:** right of the 2-pin JST connector and `R14`, on the top edge of
+  the `BAT2` outline; the silkscreen note's arrow points to it. Silkscreen wording read from the
+  photo and corrected in [`../../hardware/specs/upgrade-kit-boards.md`](../../hardware/specs/upgrade-kit-boards.md).
+- **Unverified:** `JP1` continuity (meter across the pads), absence of solder bridges at the
+  removed holder pads, and the JST pitch and polarity against the Meshnology lead. The LiPo is not
+  connected in any frame; which battery, if any, is in the device now was not stated.
+- **Next:** meter `JP1` and the JST polarity, connect the Meshnology pack, re-run checklist 1.7, then
+  discharge-test the pack for its usable Wh.
+- **Second look at the photos (later, same day; photo readings, *unverified*):**
+  - `JP1` shows one solder blob across both pads, consistent with the board charging the pack at
+    ≈1.65 A (entry above).
+  - The four holder-contact remnants are **raised, flat tinned tabs**, not flush pads. They sit at
+    the left (`−`) and right (`+`) ends of `BAT1`/`BAT2`.
+  - In the AC1200 frame, the AC1200's black u.FL coax leads **run across the two right-hand (`+`)
+    remnants**. With the pack connected, those are probably live at pack voltage.
+  - Dark smears beside the right-hand remnants look like flux residue from the desoldering.
+  - **Action before the shell closes:** trim or reflow the tabs flat, clean the flux with IPA, and
+    cover all four with Kapton. Route the coax away from them. The pouch pack must not press onto a
+    raised tab.
+
+## 2026-10-11 — Meshnology LiPo pack built up with frame and lead (not fitted, not tested)
+
+- **What was done (owner):** the Meshnology pack was put in a black bar frame and given a lead
+  ending in a plug for the NVMe battery board. Photo:
+  [`20261011-lipo-meshnology-frame-and-lead.jpg`](../../images/inventory/20261011-lipo-meshnology-frame-and-lead.jpg).
+- **Photo readings (*unverified*):** four leads (2 red, 2 black) leave the cell edge and go into an
+  inline white 2-pin connector, then a red/black pigtail goes to a smaller white 2-pin plug. The
+  pin pitch and which pin carries red cannot be read from the frame.
+- **Owner, same day:** it is **both Meshnology packs in parallel on a Y harness**, so ≈74 Wh
+  nominal. That closes the open question in [`decisions.md`](decisions.md).
+- **Measured (owner's meter):** each pack **4.48 V**, and the joined pair **4.48 V** at the Y. The
+  packs were matched when joined. But 4.48 V is **above the 4.20 V limit** for a 3.7 V LiPo, so
+  either the cells are over-charged or the meter reads high. Cross-check reference: the PMIC read
+  the 18650 pair at **4.202 V** at 20:59Z. Procedure and handling are in
+  [`known-issues.md`](known-issues.md).
+- **Still not done (owner, 2026-10-11):**
+  - [ ] Meter cross-checked against the PMIC on the 18650 pair, which settles the 4.48 V.
+  - [ ] `JP1` soldered closed. It is still **open**, so the pack must not be connected yet.
+  - [ ] Plug pitch matched to the board's JST, and polarity checked with a meter, before the
+    first connection.
+  - [ ] Pouches checked for puffing, and a discharge test of the pair.
+- The interim 18650 pair stays in service until those are done. *Superseded the same evening:
+  18650s removed, `JP1` bridged, pack fitted, and the 4.48 V traced to the meter (entry above).*
+
+## 2026-10-11 — webdash redesign phase 2 built (Wi-Fi split, SDR tabs, Bench row, a11y, render guard)
+
+- **Pipeline:** brief agreed by the owner → `webdash-qa` as-built baseline → `design-planner` structure
+  → `senior-rf-engineer` review → `web-ui-engineer` spec → build (2a–2e, one commit each) →
+  `webdash-qa` verify and `web-ui-engineer` code review → fixes → this record.
+- **Owner decision mid-pipeline:** the RF review found the WPA audit has no legal quiz or attestation
+  step, which the brief and the bar's Q9 assumed; the owner chose "the allowlist is the gate", and the
+  wording was corrected (`decisions.md`).
+- **Measured (headless Chromium on this host, fixture data; estimates, not CM4 numbers):**
+  | | main | phase 2 |
+  |---|---|---|
+  | WPA audit panel top on its view | 816 px (in `#/wifi`) | 87 px (`#/wpa`) |
+  | Overview at 1280×480 | 6 tiles | 6 tiles + Bench row, no scroll, nothing clipped |
+  | Per-tick cost, overview / detail views | 4.4 / 4.0–4.7 ms | 2.3 / 0.5–1.8 ms |
+  | DOM change records per tick | 116 | 46–92 |
+  | Static size | 237.5 kB | 252.0 kB (+6 %) |
+- **Contrast:** every rendered text pair ≥ 4.5:1 and switch tracks and control edges ≥ 3:1 in both
+  skins after the fixes; `test_mesh_radio.py` now checks text on `--bg`, `--idle`, `--off` on both
+  panel fills and `--edge`.
+- **Harness:** a live-page harness runs the real `index.html` and `main.js` with a stubbed status
+  socket and API (session scratchpad, not in the repo); it found the vintage rail-chip colour bug, a
+  stuck Sweep after reload, and the lost WPA invalid border before anyone saw them on the device.
+- **Tests:** `test_learn` (adds a station → route check), `test_survey`, `test_mesh_radio` (44),
+  `test_mesh_places` pass on the host and in the container; `test_sdr_bridge` passes on the host.
+- **Unverified:** the uConsole's own Chromium (timings, real chrome height), layouts with real data,
+  the real SDR bridge and an audio stream, a screen reader. After merge: rebuild the container and
+  recompile the curriculum bundle (`learn-compile.py`) so module links use the new routes.
+- **Also:** the NOAA picker's "confirmed at FM03" note is dated (2026-10-03, Fancy's own fix that
+  day); the RF review had read FM03 against the EM94 grid as a mismatch, but Fancy travels.
+
+## 2026-10-11 — Doc-review fixes (second pass of the day)
+
+- **Why:** the `doc-review` agent checked 100 candidate lines against the logs and the live device
+  (read-only) and found 6 stale claims, no contradictions.
+- **Fixed:** the SDR known issue now records the `sdr-bridge` restart (16:29Z, after #41); the
+  CHANGELOG records the `mesh-gps-bridge` restart (16:28Z, `max_interval=0.0s`); the AC1200
+  "not arrived" paragraph in the antenna doc is dated as history; the meshtastic MQTT heading no
+  longer says "not configured"; the learning plan's 2026-09-24 hardware snapshot is marked
+  superseded. `presentation/talk.html` (local build artifact, not in git) still said 17 of 22;
+  regenerated from the deck, which already said 19 of 22.
+- **Then closed:** the owner restarted `uconsole-aiov2-bridge` at 17:19Z. `GET /mesh-radio` now
+  returns `{"ok": true, "freq_mhz": 924.125, "tx_dbm": 22}`, the container reaches it, and the
+  dashboard's cross-check gives `agrees` (run inside the container against the live endpoint,
+  without opening a second meshtasticd connection).
+
+## 2026-10-11 — SDR bridge: a new listen takes the tuner instead of getting "busy"
+
+- **Why:** switching station in the SDR view failed with 409 `SDR is busy (listen)`. A fix written
+  2026-10-01 (`fix/sdr-listen-preempt`) was never pushed, and `main` has since changed the bridge
+  (ADS-B as a chosen app, the airband scanner), so it was redone rather than merged.
+- **Method:** `diagnosing-bugs`. A loop ran the real bridge on a spare port with stub `lsusb`,
+  `sudo` and `rtl_fm` on `PATH` (no dongle, no systemd, ADS-B left running on the live bridge).
+  Overlapping requests: second got 409. Drop then re-request 0.1 s later: 409 three runs of three.
+  Polling `busy` after the drop: it cleared at **3.3 s**, when the old handler's next write failed.
+- **Fix:** latest wins between listen and scan; hunt and ADS-B still refuse. The new stream waits
+  for the old `rtl_fm` to exit (38 ms gap seen) before opening the dongle.
+- **Tests:** new `webdash/tests/test_sdr_bridge.py`, 6 pass (5 red before the fix); host only. The
+  stub loops went green: overlap 3/3, switch 3/3.
+- **Unverified:** the live bridge with the real dongle, and a real browser. Headless chromium could
+  not play audio, so whether `<audio>` re-requests a live stream (the original 2026-10-01 report)
+  is still open. Needs `sudo systemctl restart sdr-bridge`.
+- **Also corrected:** `software/sdr-stack.md` still said the bridge restarts `readsb` after a
+  listen, which stopped on 2026-10-03.
+
+## 2026-10-11 — webdash: mesh sender place ported onto the phase 1 message log
+
+- **What happened to it:** the 2026-10-09 sender-place feature (entry of that date, below) was deployed from its
+  branch, `claude/mesh-sender-place-20261009`, which was never pushed or merged. Every rebuild from
+  `main` after that removed it from the running container, including several on 2026-10-11. Its
+  data file (`places.tsv`, built 2026-10-09) stayed in the webdash data dir.
+- **Port:** `app/places.py`, `host-helpers/places-build.py` and the tests carried over unchanged.
+  The collector hooks (`_sender_place`, `_fill_places`, the `place` field) went into the phase 1
+  `mesh.py`. Phase 1's log only ever appends rows, so `mesh.js` now keeps each row's header element
+  and rewrites it in place when a place arrives later, the way delivery tiers update.
+- **Left behind:** the old branch's two-line clamp for tile values. #19's `minmax(0, 1fr)` columns
+  already stop a long message widening the overview, and the single-line ellipsis stays.
+- **Checks:** `test_mesh_places.py` 14 pass on the host; in the container 13 pass and the builder
+  test skips (host helper, not in the image). The other three suites pass. Headless chromium,
+  driving `mesh.js` with stubbed fetches: a place filled in on a later poll rewrote the same row
+  node, and a new message still appended. In the rebuilt container the real list loads in 1.5 s
+  and resolves a public reference point (Albany, GA city centre) to `near Albany, GA`.
+- **Unverified:** a label on a real received message, still. How many heard nodes broadcast a
+  position at all is unmeasured.
+
+## 2026-10-11 — GPS bridge: idle keepalive turned off
+
+- **Why:** each `setFixedPosition()` makes meshtasticd save its config and re-initialise the LoRa
+  radio. The bridge re-sent an unchanged fix every 900 s while parked, so the radio was reset every
+  15 min for nothing; the node already keeps the fixed position and rebroadcasts it itself.
+- **Evidence (journal, 2026-10-06 20:53–21:38 local):** four keepalive sends, each `moved=1m`. For
+  the two meshtasticd logged (20:53, 21:38), `set_fixed_position` was followed in the same second
+  by `Save changes to disk` and `Set radio: region=US ...`. At 21:08 and 21:23 the API connection
+  was being force-closed and reopened, and meshtasticd logged no `set_fixed_position`; those two
+  sends probably did not land.
+- **Change:** `MAX_INTERVAL_S` in
+  [`mesh-gps-bridge.py`](../../webdash/host-helpers/mesh-gps-bridge.py) now defaults to `0` (off).
+  Positions go out only on a move of ≥100 m, at most every 300 s. Set `MAX_INTERVAL_S > 0` to bring
+  a keepalive back. Written 2026-10-02 on `feat/mesh-longfast-channel` (PR #17) but never merged;
+  carried over on its own, without that branch's LongFast change.
+- **Not yet live:** the service runs the script from this checkout, so it takes effect on
+  `sudo systemctl restart mesh-gps-bridge`. Expect `max_interval=0.0s` in its start line.
+- **Unverified:** that the node still rebroadcasts its position on schedule with no keepalive over
+  a long parked period (a peer's NodeDB age for Fancy's position would show it).
+
+## 2026-10-11 — webdash redesign phase 1 built: the mesh transmit actuator
+
+- **What:** Built phase 1a–1h of the redesign from the `web-ui-engineer` spec and two
+  `senior-rf-engineer` reviews. The owner chose to include `wantAck`.
+  - **1a:** the pure `mesh_radio.py` (frequency rule, copy, readiness).
+  - **1b:** real liveness, and the radio and channel fields.
+  - **1c:** the bridge reads the frequency from the journal.
+  - **1d:** the server-side send gate, `wantAck` and delivery tiers.
+  - **1e:** vintage `--tx`/`--warn` contrast.
+  - **1f:** the actuator on mesh Send.
+  - **1g:** a render harness.
+  - **1h:** docs.
+- **Result:**
+  - Tests: 35 in `test_mesh_radio.py` plus `test_learn` and `test_survey` pass in the container,
+    and `learn-compile --check` is ok.
+  - Live read-only check: SCMesh, slot 88, 924.125 MHz, 22 dBm, NCMesh's own slot 916.875 MHz.
+  - All 9 actuator states rendered in both skins and at 640 px.
+  - The read-only check found the MQTT uplink and map reporting on, contrary to the docs. That's
+    in [`known-issues.md`](known-issues.md); nothing was changed.
+  - The bridge restart for `/mesh-radio` failed with "Method call timed out": the session has
+    no sudo. The old bridge kept running, and no rail changed.
+- **Photos:** none (render PNGs kept in the session scratchpad, not the repo).
+- **Next:**
+  1. ~~Owner: `sudo systemctl restart uconsole-aiov2-bridge`.~~ Done 2026-10-11 17:19Z.
+  2. Owner: decide whether MQTT stays on.
+  3. Step 1i, one owner-run send to check the evidence tier. Per the RF review, take the SDR
+     whip off and fit a 50 Ω terminator (or a 20–30 dB attenuator) first, with the bias tee off.
+  4. Re-run checklist 3.10 on 924.125 MHz.
+
+## 2026-10-11 — Meshtastic restored to SCMesh primary; webdash redesign phase 1 reviewed
+
+- **What:** A `webdash-qa` pass on the mesh Send form found the radio on `LongFast` (906.875 MHz),
+  not `SCMesh` as documented. At the owner's request, the primary was restored to `SCMesh`: the
+  duplicate secondary was deleted, the primary renamed, and the pinned `lora.channel_num 20` reset
+  to `0`. The channel URLs were backed up off-repo first. The webdash container was restarted to
+  reload the channel list. The redesign ideation (creative-director, design-planner,
+  guided-learning, two `webdash-qa` baselines) led to the phased plan in
+  [`decisions.md`](decisions.md). `senior-rf-engineer` reviewed phase 1's transmit control.
+- **Result:** `Set radio: region=US, name=SCMesh, config=0, ch=88, power=30`, `Final Tx power:
+  22 dBm`, `Frequency set to 924.125000`. Channels are PRIMARY `SCMesh`, SECONDARY `NCMesh`. Nothing
+  was transmitted by these steps beyond the node's own normal traffic. Cause and commands are in
+  [`known-issues.md`](known-issues.md).
+- **Photos:** none.
+- **Next:** re-run checklist 3.10 (second node) on 924.125 MHz. Then the `web-ui-engineer` spec
+  for phase 1, carrying the RF review's blocker: success copy may only say "queued", not "sent",
+  without evidence.
+
+## 2026-10-11 — RTC cell fitted; checklist 2.4 and 3.1 ticked; doc-review fixes
+
+- **What:** The owner reports the RTC backup cell **fitted and tested** across a full power cycle
+  (2026-10-10; a Toshiba lithium CR1220). A `doc-review` pass (through
+  `7c11f6f`) found 16 stale lines, mostly AC1200 "in transit" text left over from before
+  2026-09-30; those were corrected.
+- **Result:** Read-only corroboration 2026-10-11: on the 2026-10-10 23:40 UTC boot the kernel logged
+  `rtc-pcf85063 1-0051: setting system clock` with no `POR issue` / `Power loss detected`, and
+  `timedatectl` shows RTC within 1 s of UTC. `iw dev` shows `wlan1` on `phy#3`, and
+  `iw phy phy3 info` lists `monitor`. Checklist **2.4** (AC1200 monitor mode, evidence
+  2026-09-30) and **3.1** (RTC, owner-tested) are ticked: **19 of 22 pass**; 1.2, 1.4 and 3.7 stay
+  open. `mergecap` is installed (`wireshark-common`).
+- **Photos:** none.
+- **Next:** 3.7 (look at the tar1090 map with aircraft on it), 1.4 (thermals under
+  `sudo vcgencmd get_throttled`), 1.2 (keyboard).
+
+## 2026-10-09 — Discharge run on the interim 18650 pair: ~6.7 Wh, then a hard power loss
+
+- **What:** First full discharge of the fitted `9900mAh` 18650 pair (parallel, `JP1` open). The
+  pack had sat at 4.20 V on charge for more than 1.5 h, so it started essentially full. At the
+  start (≈23:17 UTC) the owner unplugged the charger and switched **every AIO rail off except
+  LoRa** (SDR, USB and GPS off; `meshtasticd` kept running). Screen on, desktop idle. A logger
+  sampled `axp20x-battery` voltage and current every 10 s from 23:21:43 to 00:42:46 UTC.
+- **Data (off-repo):** `~/.local/state/clockworkpi-uconsole/discharge-20261009/` on Fancy —
+  `samples.tsv` (487 rows, no gaps; SHA-256 `36fb4374d80a51a7c5ae2f3c1d9bdac229b3bf03c1b665e613b9e3905dc13fc8`)
+  and `events.log` (SHA-256 `9e01dd63f2d587230925d4500be25f71911199900324e07dfa2b6b68b2e19585`).
+- **Result:**
+
+  | Measure | Value |
+  |---|---|
+  | Average draw at the cell | **4.71 W / 1.25 A** (4.6–4.8 W in every 15-min block) |
+  | Delivered, logged (81.2 min) | **1697 mAh / 6.37 Wh** (re-integrated independently: 1693 mAh / 6.36 Wh) |
+  | Delivered incl. the ~4 unlogged minutes | **≈1.78 Ah / ≈6.7 Wh**, ≈85 min (*estimate* for the unlogged part) |
+  | Loaded voltage | 3.91 V → 3.82 (30 min) → 3.69 (60 min) → 3.60 (74.5 min) → 3.50 V |
+  | Slope | −3 to −5 mV/min to 60 min, −6.4 at 60–70, **−11 mV/min after 70 min** (the knee) |
+  | End | **Hard power loss at 00:43:34 UTC at 3.49 V under load** — journal stops mid-stream, no shutdown sequence |
+  | Fuel gauge | **100 % for the whole run**, including the last sample |
+  | `throttled` | `0x0` throughout, including the last sample |
+
+- **Reading:**
+  - A genuine 3000 mAh pair holds ≈22 Wh, ≈4 h at this load. This pair gave **about a third of
+    that**. If both cells share equally that is **≈0.9 Ah per cell** (*estimate*); the run cannot
+    tell two weak cells from one good cell plus one dead or disconnected one. The weigh test and a
+    per-cell capacity test settle which.
+  - The knee after 70 min says the cells really were near empty. The cut was not only a protection
+    trip at a falsely high voltage. Whether the cell protection, the AXP228, or the 5 V boost cut the
+    power is *unverified*.
+  - **New measured floor: 4.71 W with only the LoRa rail on**, screen on. That is a little under
+    the ~5.0 W derived on 2026-09-23 (which had session shells running). The Meshnology runtime
+    table in `power-budget.md` stands and, if anything, is slightly conservative.
+- **Side finding:** webdash's ADS-B mode had `readsb` decoding when the SDR rail went off. `readsb`
+  exited (`probably lost the USB device`) and then **restarted about 340 times**, every 15 s, with
+  `rtlsdr: no supported devices found`, until the power loss. Harmless here, but it is wasted wakeups
+  on a battery run. Stop ADS-B before turning the SDR rail off. Logged in
+  [`known-issues.md`](known-issues.md).
+- **Photos:** none.
+- **Next:** weigh both cells and voltage-match them; capacity-test each cell separately. The swap to
+  the Meshnology pack (`JP1` closed, PH2.0 polarity metered) now has a measured reason behind it.
+
+## 2026-10-09 — Pack internal resistance measured (load step), voltage drop off-charger explained
+
+- **Why:** the owner reported pack voltage "drops immediately" after unplugging the charger.
+- **Method:** on battery (`axp20x-battery` status `Discharging`, `axp22x-ac` offline), sampled
+  `voltage_now`/`current_now` at 2 Hz: 15 s idle, 20 s with 4 CPU cores busy, 15 s recovery.
+  ΔR = ΔV/ΔI on each edge, first 4 samples after each step skipped.
+
+  | Phase | Voltage | Battery current |
+  |---|---|---|
+  | Idle | 3.934 V | −1.247 A |
+  | 4-core load | 3.886 V | −1.684 A |
+  | Recovered | 3.920 V | −1.252 A |
+
+- **Result:** **80–110 mΩ** (step-up 79, step-down 110; the spread is ongoing discharge drift),
+  ≈95 mΩ whole path: both cells in parallel + holder contacts + board + AXP sense. In the range
+  expected for working cells. Only a 0.44 A step, so treat it as ±30 %.
+- **Explains the drop:** charging at ≈1.95 A (`constant_charge_current`) to discharging at ≈1.25 A
+  is a ≈3.2 A swing × ≈0.095 Ω ≈ **0.3 V** instant step, ≈4.2 → ≈3.9 V; 3.943 V was read right
+  after unplugging. Surface-charge relaxation adds a slower sag over 10–30 min. Normal.
+- **Also seen:** the AXP gauge read `capacity=100` at 3.94 V under load. It has not learned this
+  pack, so the percentage isn't trustworthy until a full charge/discharge cycle.
+- **Does not settle:** cell capacity. The `9900mAh` known issue stays open (weigh + capacity test).
+
+## 2026-10-09 — webdash: mesh sender place, and tiles no longer widen on long messages
+
+- **What:** The owner asked for each received mesh message to show roughly where the sender is
+  (nearest city/town/village after the channel name), and separately reported that inbound
+  messages still widened the overview. Branch `claude/mesh-sender-place-20261009`.
+- **Sender place:** new `webdash/app/places.py` (offline nearest-place lookup) and
+  `webdash/host-helpers/places-build.py` (GeoNames `cities500` -> `places.tsv` in the webdash data
+  dir). `mesh.py` labels each received text from the sender's NodeDB position and retries for up
+  to 1 h if no position is known yet. Only the label is stored on the message. Design:
+  [Sender place](../reference/webdash-architecture.md#sender-place).
+- **Ran on the device:** `places-build.py` downloaded and wrote **236017 places** (9.9 MB, zip
+  sha256 `4022ba76d34abbcd…`) in 17 s. Load measured at **1.4 s, ~48 MB**; lookups 0.05–6 ms.
+  Public reference points resolved correctly (Albany GA city hall -> `near Albany, GA`, Munich ->
+  `near Munich, Bavaria, DE`, mid-Atlantic -> no label, antimeridian wrap OK).
+- **Tile width:** cause found. `.tiles` used `repeat(4, 1fr)`, and `1fr` can't shrink below its
+  content's min-content width; the Mesh tile's "Last heard" value was `nowrap`, so a long message
+  widened its whole column. Fixed with `minmax(0, 1fr)` and `min-width: 0` on `.tile`; tile
+  values now wrap to two lines then clamp. Before/after confirmed with headless chromium renders
+  at 1280×720. `.mesh-meta` in the detail log also wraps now, for long node or place names.
+- **Tests:** `webdash/tests/test_mesh_places.py`, 14 pass; `test_survey.py` still passes.
+- **Deployed 17:47Z:** container rebuilt on the owner's go-ahead (in-memory message log cleared).
+  Up with 0 restarts and a clean startup; inside the container `/data/places.tsv` loads and
+  resolves, and the new `styles.css`/`mesh.js` are served.
+- **Unverified:** no label on a real received message yet, and the tile fix not yet seen in a
+  logged-in browser (only in the static render). How many heard nodes broadcast a position at all
+  is unmeasured.
+
+## 2026-10-08 — webdash: focused-report enhancements from a real facility walk
+
+- **What:** The owner walked a real 7-waypoint passive survey of their facility ("microban-guest")
+  and asked to review + enhance the focused report on the "Microban WiFi - Guest" ESS. A second
+  `senior-rf-engineer` review of that live data drove the changes (all in `app/survey/analysis.py`
+  `focus_analysis`/`_focus_findings`, `report.py` `focus_markdown`, `pdf.py` `focus_pdf`,
+  `static/js/survey.js`): a rule-derived **findings** block; **best-server-per-band** table and a
+  per-waypoint **coverage verdict**; per-waypoint **QBSS station counts** surfaced; and the roaming
+  footprint now carries cumulative clients + peak stations.
+- **Two correctness fixes the review caught** (Kismet field semantics): `min_signal`/`max_signal`
+  and `num_associated_clients` are **whole-capture cumulative**, not per-waypoint — showing them
+  per-waypoint was misleading (min pinned, max/clients ratcheting as the walker approached). Moved
+  to the roaming footprint (lifetime range, cumulative clients); the per-waypoint view keeps the
+  last-signal RSSI and the **instantaneous** QBSS reads. Self co-channel is now **gated** — only a
+  pair with both siblings ≥ −70 dBm at the same waypoint counts as contention (was over-reporting
+  healthy frequency reuse ~6:1). Co-channel shown as BSSID count **and** a distinct-physical-radio
+  estimate (virtual BSSIDs grouped by lower 5 MAC octets).
+- **Result:** Regenerated against the owner's real walk. Findings match the RF read: strong
+  coverage at all 6 good points; self-contention only on ch1/ch6 in the two offices (ch11/ch161
+  correctly healthy reuse); 4 external adjacent interferers incl. a 40 MHz ch4 neighbour on guest
+  ch6; ~32 stations concentrated on the breakroom ch36 radio; and the failed/re-walked first
+  waypoint flagged. 28 survey unit tests pass (added radio-grouping, self-co gate, findings).
+- **Photos:** none this session.
+- **Next:** unchanged — the deferred focused *capture* mode (channel-lock) still needs the Kismet
+  `set_channel` endpoint confirmed.
+
+## 2026-10-08 — webdash: survey SSID-focus + overlap/contention + GPS/site-map
+
+- **What:** Extended the Wi-Fi survey with an **SSID-focused mode** (per-AP, per-waypoint signal /
+  channel / overlap / contention), designed with the `senior-rf-engineer` agent and built against a
+  live Kismet field dump. New `app/survey/rf.py` (channel width/center/span/overlap math) and
+  `sitemap.py` (waypoint map); enriched `snapshot.py` (ht_mode, ht_center_1, QBSS utilization +
+  stations, num_associated_clients, min_signal, mobility domain, packets); `analysis.list_ssids()`
+  + `analysis.focus_analysis()`; focused Markdown/PDF reports; GPS lat/lon stored per waypoint; and
+  routes `…/ssids`, `…/focus`, `…/report?kind=focus`. UI: an SSID picker in the survey preview with
+  a per-BSSID table and the site map. The survey-wide 2.4 GHz finding was reworded to the RF-correct
+  co-channel (shared) vs adjacent-overlap (harmful) distinction.
+- **Result:** Deployed and **verified live** against a Kismet hearing ~140 devices. Focusing on
+  **BBIWIN** resolved a **12-BSSID enterprise ESS** (2.4 + 5 GHz, mobility domain 25410) with real
+  per-BSSID QBSS utilization (0–36 %), client counts (0–19), channel widths (20/80 MHz) and **4 self
+  co-channel pairs** (its own APs doubled on ch 1/6/11/161 — the headline finding). `adj=0` is
+  correct (the deployment is cleanly on 1/6/11). GPS had no fix indoors, so the site map took its
+  fallback, as designed. Both PDFs render (focused 3 pp, comprehensive 4 pp with the new GPS/width/
+  utilization columns). 26 survey unit tests pass (added `rf.py`, focus, and sitemap coverage),
+  host and in-container.
+- **Honest caveats baked into the reports** (from the RF review): overlap classified by primary
+  channel (co-channel = deferral/shared airtime, adjacent = collisions); contention from the AP's
+  own QBSS beacon figure (no airtime computed from our hopping capture); BSSID/client counts are
+  lower bounds; **no SNR** (mt76 reports noise as 0); width read from the beacon element, not
+  measured across the bonded block.
+- **Deliberately deferred:** the focused *capture* mode (channel-lock to the ESS's channels for
+  better dwell) — receive-only and within posture, but it needs the Kismet `set_channel` endpoint
+  confirmed and changes the single shared radio's behaviour. Tracked in `TODO.md`.
+- **Photos:** none this session.
+- **Next:** confirm `set_channel` on device and add the opt-in focused capture mode; optional
+  floor-plan backdrop for indoor site maps.
+
+## 2026-10-08 — webdash: Claude-assisted Wi-Fi survey (passive)
+
+- **What:** Added a site-survey workflow to the webdash Wi-Fi view, layered on the existing
+  **passive** Kismet collector. Start a named survey, drop a waypoint at each location (each
+  captures a Kismet device snapshot via its REST device list, tagged with the GPS grid/fix),
+  stop, then download a comprehensive technical report, a leadership executive summary, or a
+  paste-ready Claude brief. New package [`webdash/app/survey/`](../../webdash/app/survey/)
+  (`store.py` session/waypoint persistence in the data dir, `snapshot.py` Kismet device fetch,
+  `analysis.py` deterministic aggregation, `report.py` three Markdown renderers), nine
+  `/api/survey/*` routes in `main.py`, and a Wi-Fi-view panel
+  ([`survey.js`](../../webdash/app/static/js/survey.js) + CSS). Receive-only throughout — the
+  survey observes what Kismet heard; it does not associate, deauth, or decrypt. Design recorded
+  in [`../reference/webdash-architecture.md`](../reference/webdash-architecture.md) ("Wi-Fi
+  survey").
+- **Result:** App imports clean and all nine routes register inside the live image; the pure
+  store/analysis/report logic is covered by [`webdash/tests/test_survey.py`](../../webdash/tests/test_survey.py)
+  (14 tests, fabricated snapshots — dedup across waypoints, strongest-signal footprint,
+  band/channel/security breakdowns, findings, and all three report renderers), run both on the
+  host and in-container. `survey.js`/`main.js` pass `node --check`; the panel's element IDs
+  cross-check against `index.html`.
+- **Deployed and walked, same session.** Rebuilt/restarted the live container
+  (`docker compose up -d --build`), started the passive Kismet user service, and walked a
+  three-waypoint test survey against a Kismet hearing ~180 devices. `snapshot.capture()` returned
+  **52 unique APs** (176→186 devices across the three samples as Kismet kept hearing more),
+  `mac`/`type`/`frequency`/`signal`/`manuf` fully populated; analysis gave 52 APs / 68 clients / 27
+  hidden, a 27×2.4 GHz / 24×5 GHz split, 51 WPA2 + 1 Open, and the executive/technical/brief reports
+  rendered correctly. **One bring-up fix:** the SSID comes from
+  `dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.ssid`, not the deprecated flat
+  `dot11.device.last_beaconed_ssid` (which returns integer `0` when empty) — before the fix every AP
+  read as hidden; after it, real SSIDs (BBIWIN, Microban WiFi - Guest, …) parse and `commonname` is
+  dropped when it only echoes the MAC. GPS recorded `fix: none` indoors and the waypoints were still
+  captured, as designed. The test survey is retained in the dashboard; delete it from the Wi-Fi view
+  when no longer wanted.
+- **"Claude-assisted," kept honest:** the CM4 runs no LLM and the app holds no API key; the
+  reports are generated on-device. The assistance is the analysis/report engine (authored with
+  Claude) plus the `brief` export — the structured hand-off for an operator who wants a narrative
+  pass from Claude. On-device reports stand alone offline.
+- **PDF export added, same session.** On request, reports now download as PDF as well as Markdown:
+  `?fmt=pdf` on the report route builds the comprehensive (landscape A4) and executive (portrait)
+  documents with **fpdf2** (`webdash/app/survey/pdf.py`, added to `requirements.txt`) — a pure-Python
+  generator with no native deps, chosen over reportlab (which pulls pillow) to keep the slim image
+  slim. The `brief` stays Markdown-only (it is a prompt, not a document). Verified end-to-end:
+  `%PDF` output, 1-page executive / 5-page technical, correct content (`pdftotext`) and layout
+  (`pdftoppm` render). A second data bug surfaced and was fixed while rendering: Kismet reports 0 dBm
+  for a device with no real signal measurement, which was being counted as the "best" reading (a
+  bogus 0 dBm best signal per waypoint); `analysis.valid_signal()` now ignores non-negative RSSI, so
+  the waypoint table reads realistic values (−58/−58/−57 on the test walk). Regression test added;
+  15 survey tests pass.
+- **Photos:** none this session.
+- **Next:** Done — deployed and verified live. Remaining polish: the executive "What matters"
+  section treats an Open network as info-level (so it reads "nothing of concern") while still
+  recommending remediation; consider aligning those two. The `tests/` dir is not baked into the
+  image, so `test_survey.py` is piped in to run in-container.
+
 ## 2026-10-06 — webdash: passive packet-capture tap (tshark) + M14 curriculum
 
 - **What:** Installed Wireshark/tshark 4.4.19 on Fancy and added a passive, receive-only
@@ -15,8 +839,8 @@ Dated journal of what was done. Newest entries at the top. Link photos in [`../.
   (TCP retransmit/dup-ack/reset, ICMP-unreachable) and protocol mix populate, the final summary
   lands on "done", and the pcap is user-owned in `~/labs/tshark`. Two bring-up bugs found and
   fixed: dumpcap exited immediately because it drops `CAP_DAC_OVERRIDE` and so, as root, could not
-  write into the mode-700 home — it now runs **as the user** via `runuser`, which requires the
-  capture user in the `wireshark` group (added this session); and the summary read back zero
+  write into the mode-700 home — it now runs **as the user** via `runuser`, which requires
+  `wicked5mile` in the `wireshark` group (added this session); and the summary read back zero
   because a heredoc fed the program on python's stdin, starving it of tshark's output — the
   aggregator moved to its own file, plus a final-summary pass after the capture loop. Captures land
   on the 234 GB NVMe, never the microSD. The senior-rf-engineer review was applied to the M14
@@ -1211,6 +2035,7 @@ Dated journal of what was done. Newest entries at the top. Link photos in [`../.
 - **Photos:** none this session.
 - **Next:** if link-quality numbers from the A/B test exist, record them in `decisions.md` to
   close the performance question, not just the selection.
+
 ## 2026-09-21 — `aircrack-ng` installed for authorized WPA/WPA2 auditing
 
 - **What:** Installed `aircrack-ng` (Debian trixie's own repos, no third-party apt repo needed —
@@ -2163,6 +2988,46 @@ Dated journal of what was done. Newest entries at the top. Link photos in [`../.
   originals held off-repo with checksums recorded.
 - **Next:** Remaining two packages (AliExpress kit + AIO V2, HackerGadgets upgrade kit) are still
   in transit or unshipped. Inventory rows for those stay open.
+
+## 2026-10-06 — WatchDogsGo installed (passive layer, bridge not yet applied)
+
+- **What:** Installed [WatchDogsGo](https://github.com/LOCOSP/WatchDogsGo) 0.9.13 (git `6412603`)
+  to `~/WatchDogsGo` and ran its `setup.sh`. The game is written for an ESP32-C5 but ships a
+  no-ESP32 bridge (`wdg_wifi_bridge.py`) that drives the AIO radios — the path this build uses.
+  Software only; no device disassembly, no RF emitted. See [`../../software/watchdogsgo.md`](../../software/watchdogsgo.md).
+- **Result:** `setup.sh` completed with no errors. venv (Python 3.13.5) imports verified —
+  `pyxel 2.9.9`, `pyserial 3.5`, `Pillow 12.3.0`, `scapy 2.8.0`, `bleak 3.0.2`, `netifaces 0.11.0`,
+  `dbus-python 1.5.0`, `python3-gi`, `LoRaRF 1.4.0`, `PyNaCl 1.6.2`, `cryptography 50.0.2`. apt build
+  deps installed; `rpi-lgpio` + `python3-gi` linked into the venv; FlightAware `dump1090` built to
+  `/usr/local/bin/dump1090`; `loot/ maps/ firmware_cache/ secrets.conf` created (`secrets.conf`
+  off-repo, `chmod 600`). The `python -m watchdogs` pre-flight passes. **The game has not been
+  launched** (`run.sh` runs as root and kills `meshtasticd`); AC1200 `wlan1` confirmed `unmanaged`
+  in NM, `wlan2` (AWUS036ACM) absent.
+- **Scope:** Per the legal posture, only the passive layer (Wi-Fi/BLE survey, GPS wardrive, RPG
+  frontend) is in scope. Active attacks (deauth/Evil Twin/MITM/BlueDucky) are **not enabled**;
+  handshake capture stays inside the authorized-audit carve-out. ADS-B radar held off (SDR rail is
+  power-only while the hang/undervoltage question is open); LoRa left to `meshtasticd`.
+- **Photos:** none (software).
+- **Next:** Owner decision on applying the bridge services (unmanage persists, GPS socat PTY,
+  `wdg-wifi-bridge` on `hci1`) — held because they touch the live `wlan1` Kismet adapter. See
+  [`../../TODO.md`](../../TODO.md).
+
+## 2026-10-16 — webdash Detect: design team run, backend built, paused on a classifier block
+
+- **What:** The owner asked for a Wi-Fi tab that watches for offensive/pentest devices and keeps a
+  contact log, plus a learning section on the devices. Stages 0–3 of the design pipeline ran
+  (`webdash-qa`, `creative-director`, `design-planner`, plus the `senior-rf-engineer` legality
+  view). The receive-only backend was then built on `feat/webdash-hunt`. Software only: no RF
+  emitted and no device state changed. The USB rail was off, Kismet stopped and `hci1` absent
+  throughout.
+- **Result:** Backend committed `4c7f3e5`; 22 unit tests pass on the host. It has not run in the
+  container or against live Kismet. A platform safety classifier stopped the signature research,
+  the learning-section research and the front-end write, so those parts are paused. Feedback was
+  sent; see [`../reference/webdash-detect.md`](../reference/webdash-detect.md) and the private
+  `../records/ai-assistant-feedback.md`. A pre-existing
+  `test_learn.py` failure (the "capture" station has no route in `main.js`) was seen and left alone.
+- **Photos:** none (software).
+- **Next:** run the backend against live Kismet. The UI waits on a feedback reply ([`../../TODO.md`](../../TODO.md)).
 
 ## YYYY-MM-DD — <title>
 

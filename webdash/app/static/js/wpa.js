@@ -13,16 +13,16 @@ let polling = null;
 let crackPolling = null;
 let lastCap = null;
 
-async function loadList() {
+// Also called by main.js when the overview opens, for its Bench chip.
+export async function loadList() {
   const body = document.getElementById("wpa-list-body");
   const sel = document.getElementById("wpa-cap-target");
   if (!body) return;
   let entries = [];
   try {
     const resp = await fetch("/api/wpa/allowlist");
-    if (resp.ok) entries = (await resp.json()).entries || [];
+    if (resp.ok) { entries = (await resp.json()).entries || []; }
   } catch { /* leave the placeholder */ }
-
   body.innerHTML = entries.length
     ? entries.map((e) => `<tr>
         <td class="mono">${esc(e.bssid)}</td>
@@ -35,7 +35,7 @@ async function loadList() {
 
   if (sel) {
     const prev = sel.value;
-    sel.innerHTML = '<option value="">— no authorized BSSID —</option>' +
+    sel.innerHTML = `<option value="">${entries.length ? "— choose an authorized BSSID —" : "— no authorized BSSID —"}</option>` +
       entries.map((e) => `<option value="${esc(e.bssid)}">${esc(e.bssid)}${e.ssid_label ? " (" + esc(e.ssid_label) + ")" : ""}</option>`).join("");
     if (entries.some((e) => e.bssid === prev)) sel.value = prev;
     document.getElementById("wpa-cap-start").disabled = !sel.value;
@@ -91,7 +91,7 @@ function renderStatus(s) {
   return running;
 }
 
-async function pollStatus() {
+export async function pollStatus() {
   let s = { stage: "idle" };
   try { s = await (await fetch("/api/wpa/capture/status")).json(); } catch { /* */ }
   const running = renderStatus(s);

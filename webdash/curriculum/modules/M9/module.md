@@ -3,7 +3,7 @@ id: M9
 title: Satellite passes
 themed_title: Passage 9 · The sky overhead
 discipline: aerospace
-station: sdr
+station: sdr/listen
 prerequisites:
   - {id: M5, soft: false}
   - {id: M8, soft: false}

@@ -28,8 +28,8 @@ Assembly order and gotchas: [`../docs/runbooks/assembly.md`](../docs/runbooks/as
 The pack of record is a **1S LiPo (Meshnology 1163115, 10000 mAh, 37 Wh)** rather than 18650 cells
 (it replaced the UDIY-0001L chosen 2026-09-07; see
 [`../docs/logs/decisions.md`](../docs/logs/decisions.md)), and a case modification is accepted if the pack does not drop in.
-**It is not fitted yet:** as of 2026-09-23 the device runs on an interim 18650 pair in the NVMe
-battery board's holder. Nothing here is measured yet.
+**Fitted 2026-10-11:** both packs in parallel on a Y harness, `JP1` bridged, holder removed (see the
+build log). Not yet dry-fitted under the closed cover. Nothing here is measured yet.
 
 | Dimension | Value |
 |---|---|
@@ -38,6 +38,16 @@ battery board's holder. Nothing here is measured yet.
 | Rear cavity: length × width | *measure* |
 | Rear cavity: usable depth with the cover on | *measure* |
 | Clearance over the NVMe drive and the CM4 | *measure* |
+
+**Printed standoffs (2026-10-11):** the owner added a Bambu Studio project for four 4 mm
+standoff frames for the pack: [`stl/README.md`](stl/README.md). They cage the two-pouch stack and hold it
+≈5.25 mm off the board. The envelope is ≈35 × 70 × 120 mm, to be checked against the cavity depth.
+
+**Printed back cover v2 (2026-10-11):** a MakerWorld rear cover with fins and a fan mount, its
+battery bay **reworked for the standoff cage**: 122 × 71 mm, the cage clipped in 35 mm proud on guide
+rails with four snap latches. Its fins and fan are replaced by two 100 × 25 × 10 mm heat sinks over an open
+window onto the CM4. Design, checks and print notes are in [`stl/README.md`](stl/README.md).
+Not yet printed or fitted.
 
 ### Rules for the modification
 

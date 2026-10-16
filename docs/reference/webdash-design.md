@@ -1,13 +1,22 @@
 # webdash redesign: components you can read, and a device that teaches
 
-Status: **proposed design, 2026-09-23. Phases 1–3 built the same day; phases 4–8 not built.** Merged from six agent reviews of webdash as it
+Status: **proposed design, 2026-09-23; long since overtaken by what shipped.** Phases 1–3 landed
+that day; the learning layer (the successor to phases 7–8) shipped **2026-09-25 with server-side
+progress (SQLite)**, not the per-browser `localStorage` this document first proposed; and the
+redesign has continued since (accessibility pass 2026-10-11, SDR tabs, the tabbed Wi-Fi view and the
+render harness 2026-10-14). The **live, prioritized status is in
+[`webdash-design-team.md`](webdash-design-team.md)** — treat that as current wherever this document's
+phase labels disagree. Phase 5 (detail views) is the main piece still unbuilt. Originally merged from
+six agent reviews of webdash as it
 stood on branch `claude/mesh-messaging-20260923`: design-planner, creative-director,
 web-ui-engineer, syllabus-designer, tutor and guided-learning (definitions in
 [`../../.claude/agents/`](../../.claude/agents/)). Screenshots reviewed were taken on the device at
 1440 px, 1280×480 and 390 px.
 
-Companion documents: [`webdash-architecture.md`](webdash-architecture.md) (what exists and why) and
-[`../../software/webdash.md`](../../software/webdash.md) (how to run it).
+Companion documents: [`webdash-architecture.md`](webdash-architecture.md) (what exists and why),
+[`../../software/webdash.md`](../../software/webdash.md) (how to run it) and
+[`webdash-design-team.md`](webdash-design-team.md) (how the agents work on this design, and the
+prioritized backlog; added 2026-10-11).
 
 **2026-09-24:** the learning layer (§Learning layer, §Syllabus, §Missions, build phases 7–8) is
 expanded and partly revised in [`learning-platform-plan.md`](learning-platform-plan.md): content
@@ -34,7 +43,7 @@ are reconciled with 21 labs. Where the two disagree, the plan is newer.
 | F4 | Status is colour-only, and misleading: mesh stays green with the LORA rail off; GPS "no fix" is the same amber as Kismet "locked" | `setDot` in `app.js` | **fixed 2026-09-23** |
 | F5 | Off-state messages say "start it" with no control and no command | Kismet and ADS-B panels | open (phase 4) |
 | F6 | Raw values with no meaning, e.g. "Battery 101%", "Satellites 0/0", no units on SNR | screenshots | partly fixed (below) |
-| F7 | The Send box doesn't say it transmits, or on what | mesh form | open (phase 4) |
+| F7 | The Send box doesn't say it transmits, or on what | mesh form | **built 2026-10-11** (redesign phase 1: the transmit actuator; see [`webdash-design-team.md`](webdash-design-team.md)) |
 | F8 | No focus styles; rail switches have no accessible name; inline `onchange` | `styles.css`, `app.js` | **fixed 2026-09-23** |
 | F9 | `build_status()` runs once per WebSocket client, so two tabs double the gpsd sessions | `main.py` | **fixed 2026-09-23** |
 | F10 | `cpu_percent` reads 0% on the first call | `system.py` | **fixed 2026-09-23** |
@@ -114,14 +123,40 @@ owns its rail switch, so the dependency is visible where you look.
 |---|---|---|---|
 | Mesh (LoRa) | LORA (16) | meshtasticd `:4403` | M4 |
 | GPS | GPS (27) | gpsd `:2947` | M3 |
-| SDR / ADS-B | SDR (7) | readsb + tar1090 | M5, M6 |
-| Wi-Fi survey | USB (23), internal USB-C port | Kismet `:2501` | M7 |
+| SDR: ADS-B, Hunt, Listen (tabs) | SDR (7) | readsb + tar1090; rtl_power sweep; rtl_fm (NOAA, airband scanner) | M5, M6 (ADS-B); M8 (Hunt); M9, M10, M12 (Listen) |
+| Wi-Fi survey (Kismet) | USB (23), internal USB-C port | Kismet `:2501` | M7 |
 | Power | — (PMIC) | aiov2 bridge `:8765` | M1 |
 | System | — | psutil, thermal | M1 |
 
 The USB rail (23) powers the AIO V2's internal USB-C port, meant for an AC1200 or other accessory
 radio, so its switch sits on the Wi-Fi survey station, and that station reads *rail off* when USB
 is off.
+
+**Wi-Fi tabs** (2026-10-14). Kismet (the passive scan), the site survey, packet capture and the
+authorized WPA audit are all Wi-Fi work on the one USB-rail accessory radio, so they are tabs of one
+view (`#/wifi/kismet`, `#/wifi/survey`, `#/wifi/capture`, `#/wifi/wpa`), built exactly like the SDR
+tabs below: a `<nav class="wifi-tabs">` of plain `<a>` links carrying `aria-current="page"` on the
+open one (not APG `role=tablist`), each panel a `role="region"` labelled by its own `<h2>`, all
+inside one shared `.panel`. Bare `#/wifi` opens Kismet; the transmitting WPA audit is last. One
+shared view-head (Kismet status) and one shared `.panel-foot` USB rail switch serve all four tabs —
+replacing the per-view switches the standalone routes had. `#/survey`, `#/capture` and `#/wpa` still
+resolve: they redirect in place to the matching tab, so old bookmarks and the `station: wpa`/`survey`
+Learn links keep working. These four were standalone routes (survey/capture/WPA reached from a Bench
+row) before this date; **the Bench row is now gone** — everything Wi-Fi lives under `#/wifi`.
+
+| Tool | Route | Depends on | Learn module |
+|---|---|---|---|
+| Site survey | `#/wifi/survey` | Kismet running (USB rail); its hint links to the Kismet tab; the shared USB switch is in the view's `.panel-foot` | — |
+| Packet capture | `#/wifi/capture` | an interface; `wlan1` needs the USB rail. Passive, counts only | — |
+| WPA audit, authorized only | `#/wifi/wpa` | USB rail (shared switch in the view's `.panel-foot`), `wlan1` in monitor mode; pauses Kismet during a capture and restores it. **The gate is the allowlist**: a BSSID plus a written authorization basis, checked by the server and again in `wpa-capture.sh` before any RF — unchanged by the move to a tab | M13 |
+
+**One tuner.** ADS-B, Hunt and Listen share the single RTL-SDR, so they are tabs of one view
+(`#/sdr/adsb`, `#/sdr/hunt`, `#/sdr/listen`). A line above the tabs names the application holding
+the tuner, from the SDR bridge's own record, so it never says "free" while something holds it; each
+tab gives a one-line reason when its control is blocked. A hunt is a power *sweep* ("Sweep"); the
+airband *scanner* cycles channels while listening ("Scan airband"). Tabs are plain links (the
+current one has `aria-current="page"`; each panel is a region labelled by its heading) rather than
+APG-style tabs with arrow-key focus, so Learn can link to a tab and Back steps through them.
 
 **Derived status.** A station's state combines its rail and its service. For example, Mesh with
 LORA off is *off* even though the TCP API still answers.
@@ -131,7 +166,10 @@ LORA off is *off* even though the TCP API still answers.
 | Route | View |
 |---|---|
 | `#/` | Overview: status strip and one tile per station |
-| `#/mesh`, `#/gps`, `#/sdr`, `#/wifi`, `#/power`, `#/system` | Station detail |
+| `#/mesh`, `#/gps`, `#/power`, `#/system` | Station detail |
+| `#/wifi/kismet` (default for `#/wifi`), `#/wifi/survey`, `#/wifi/capture`, `#/wifi/wpa` | Wi-Fi tabs: Kismet scan, site survey, packet capture, WPA audit (authorized only) |
+| `#/survey`, `#/capture`, `#/wpa` | Redirect in place to `#/wifi/survey`, `#/wifi/capture`, `#/wifi/wpa` (kept for old links and Learn station links) |
+| `#/sdr/adsb` (default for `#/sdr`), `#/sdr/hunt`, `#/sdr/listen`, `#/sdr/owrx` | SDR tabs, with the tuner line above them |
 | `#/learn`, `#/learn/<module>` | Syllabus and module pages |
 | `#/mission/<id>` | A mission, docked beside its station |
 | `#/glossary` | All explainers |
@@ -141,7 +179,7 @@ LORA off is *off* even though the TCP API still answers.
 
 | Target | Viewport | Structure | Visible without scrolling |
 |---|---|---|---|
-| **uConsole (design first)** | 1280 wide, ~480 usable (*assumed from the screenshot; the panel is 1280×720 before browser chrome*) | 40 px status strip, then a 3×2 tile grid; detail views are 60/40 (primary / facts, actions, learn); the mission pane docks 300–360 px on the right | All six tiles, no scrolling |
+| **uConsole (design first)** | 1280 wide, ~480 usable (*assumed from the screenshot; the panel is 1280×720 before browser chrome*) | 40 px status strip, then a 3×2 tile grid; detail views are 60/40 (primary / facts, actions, learn); the mission pane docks 300–360 px on the right | All six tiles, no scrolling (the Bench row was removed 2026-10-14) |
 | Desktop | ≥1280, >700 tall | Same grid, max width 1400 px; learn drawer and mission pane dock | Everything |
 | Phone | <640 | Status strip becomes a scrollable chip row; single column ordered Mesh, GPS, SDR, Wi-Fi, Power, System; the mission becomes a bottom sheet of at most 45% height | Strip plus two tiles |
 
@@ -152,6 +190,15 @@ Rules:
   collapsed by default behind "Show embedded map". The Meshtastic frame is removed and replaced by
   a known-issue note. Keep only the tar1090 frame (same-origin, proxied).
 - Container queries on cards, so a card behaves the same in a view or beside a mission.
+- **Bench row** *(removed 2026-10-14)*. Site survey, Packet capture and WPA audit are now tabs of
+  the Wi-Fi view (see **Wi-Fi tabs** above), so the overview no longer carries a Bench row. The
+  earlier design: one line under the status strip linking the three tools, each with one live state
+  word. The WPA chip said `N authorized` or, with an empty allowlist, `authorized only`; it was a
+  link only and exposed no control. Phones got a full-width list with
+  44 px targets.
+- **Hidden views aren't drawn.** A 3 s status tick draws only the visible view (plus the strip and
+  the rail switches, which appear on several views); a view is drawn from the last snapshot the
+  moment it opens.
 
 **Status strip** (always visible): device name · power source and voltage · CPU temp · four rail
 chips (`GPS ● LORA ● SDR ○ USB ○`) · connection state · Learn · log out.
@@ -206,19 +253,52 @@ book (learn), TX.
 |---|---|---|---|---|
 | **Mesh** | nodes heard (hero, excluding self), unread count, last message | Message log as the main area; channel tabs; node list; radio config (region, preset, hop limit, channel utilisation) | **Transmit on ⟨channel⟩** in `--tx`, with a byte counter and a "public" badge; disabled with a reason when LORA is off | "LoRa rail off: the SX1262 is unpowered. Messages sent to you now are missed and not replayed." |
 | **GPS** | fix in words (hero), satellites used/visible, time since fix | Bearing-ring sky plot, fix type, HDOP, time to first fix; position as **Maidenhead grid by default**, precise coordinates behind a reveal press | GPS rail | "Searching: needs a sky view" as *idle*, not a warning |
-| **SDR / ADS-B** | aircraft (hero), with position, message rate | tar1090 frame sized to the viewport; aircraft table (callsigns as text only) | SDR rail; open map (hidden until readsb runs) | "SDR rail off (the default). readsb restarts in a loop without a dongle; that's expected." |
-| **Wi-Fi survey** | devices (hero), state | Counts by type only, never SSIDs or MACs on the dashboard face; adapter status | The verified start command to copy (no new write path) | "Passive survey only: listens, never connects." Links to the responsible-use section |
+| **SDR** | aircraft (hero), with position, message rate | Tabs: ADS-B (tar1090 link, aircraft counts), Hunt (sweep results table), Listen (NOAA, airband scanner); the tuner line, Stop and now-playing above all three | SDR rail (under every tab); Start ADS-B, Sweep, Listen | "Tuner: unpowered (SDR rail off)"; a blocked control names what holds the tuner and the tab to stop it on |
+| **Wi-Fi survey (Kismet)** | devices (hero), state | Kismet only; counts by type, never SSIDs or MACs on the dashboard face | Start/Stop Kismet, USB rail | "Passive survey only: listens, never connects." The site survey, packet capture and WPA audit are tabs of the Wi-Fi view (above) |
 | **Power** | source, voltage, watts | Charge-flow diagram (AC → system and pack), V / A / W, mode sentence, runtime *estimate* with an "untested pack" badge | Rail switches with their consequences as descriptions ("Turning SDR off stops ADS-B") | n/a |
 | **System** | CPU temp (hero), CPU and memory bars | Sparklines (2 h), throttle state | none | n/a |
 
 **Transmit and hardware controls.**
 
 - The first time a person uses Send or a rail switch, it shows one line saying what it does, e.g.
-  "Transmits on 902–928 MHz, public channel, readable by anyone. Legal under FCC Part 15; don't
-  include location or personal details."
+  "Transmits in the US 902–928 MHz ISM band (unlicensed, FCC Part 15 rules). You're responsible
+  for operating within them." (Revised 2026-10-11 per the senior-rf-engineer review: never
+  "legal under", which asserts compliance nobody has measured. As built, the mesh control states
+  this in its detail list beside the frequency, the public key, chip power and position.)
 - The mesh channel select has no silent default.
 - Rail switches become `button[role=switch]` with `aria-checked`, a busy state and an inline error
   on failure.
+
+### Sparklines
+
+Built 2026-10-15 ([`spark.js`](../../webdash/app/static/js/spark.js)), drawn from `GET /api/history`.
+
+| Where | Series | Size | Reference line |
+|---|---|---|---|
+| Overview, System tile | CPU temperature | 24 px, ≤240 px wide | — |
+| Overview, Power tile | Battery voltage | 24 px, ≤240 px wide | 3.60 V, on battery only |
+| System view | CPU %, CPU temperature | 48 px, grid cell width | — |
+| Power view | Battery voltage, power draw | 48 px, grid cell width | 3.60 V on the voltage spark, on battery only |
+
+- **Data.** History is fetched every 30 s (the sample rate), not on the 3 s status tick. Only the
+  visible view's sparks are drawn, on each tick and when new history arrives. It is in memory, so
+  a webdash restart empties it and the caption says "collecting…".
+- **Marks.** One series per spark, so no legend: the tile or the title names it. A 2 px trace in
+  `--dim`, which is status-neutral. An end dot in `--fg`, ringed in `--panel`. The y-range includes
+  the reference line so it is always on-canvas, which flattens the voltage trace on a full pack.
+- **Status.** Only the voltage end dot carries status, and only on battery: `--warn` at ≤3.60 V and
+  `--err` at ≤3.55 V, matching the strip's `⚠ charge now` and `⚠ shut down`. The caption carries
+  the value as text, so the dot is never the only cue.
+- **Caption.** `now · lo–hi · over <span>` in text tokens, at the unit's precision. With under 20
+  samples it reads `last <span> (<n>)` instead.
+- **Hover and touch.** Pointer over a spark, or a tap, snaps a crosshair to the nearest sample. The
+  caption then reads `<value> · <age> ago`. The crosshair survives the 3 s redraw and clears on
+  pointer leave. No keyboard equivalent yet; the `aria-label` carries now, the range and the span.
+- **Skins and modes.** Tokens only, so both skins follow. Under `forced-colors` the trace and dots
+  use `CanvasText` and the reference line uses `Highlight`.
+- **Verified.** Rendered with `tools/render-check/render-view.sh` (overview, system, power; both
+  skins; overview still fits 1280×480 with no scroll), plus a scratch harness for the low-voltage dot,
+  an empty series and hover. Not yet seen on the device's own screen or a phone.
 
 ## Learning layer
 
@@ -300,8 +380,11 @@ Missions are step lists whose checks are **declarative predicates** in `missions
 | **Watch the skies** (ADS-B) | SDR on; readsb running within 90 s; messages per second > 0; plane with position and open the map; SDR off | M6 |
 | **Harbour survey** (Kismet, passive) | acknowledge the passive-only rules; start with the verified foreground command; set the Kismet admin login; devices ≥1; stop and confirm `wlan1` is managed | M7 |
 
-**Progress** is stored per browser, in `localStorage` under a `fancy.v1.` prefix. Every access is
-wrapped in try/catch, and the UI works without it. Evidence snapshots (e.g. TTFF 94 s, SDR +0.9 W,
+**Progress** is stored **server-side** (SQLite under `~/.local/share/uconsole-webdash/data/`), since
+the learning MVP (2026-09-25, [`learning-platform-plan.md`](learning-platform-plan.md)); the original
+per-browser `localStorage` plan was superseded so progress survives across devices and browsers. Only
+per-viewer conveniences — the skin choice, a remembered tab — still use `localStorage` under a
+`fancy.v1.` prefix, each wrapped in try/catch so the UI works without it. Evidence snapshots (e.g. TTFF 94 s, SDR +0.9 W,
 first packet SNR −6) never include coordinates or message text. A "Copy as finding" button fills
 [`../../knowledge/_templates/`](../../knowledge/_templates/) fields, so results flow back into
 `knowledge/*/findings/`.
@@ -345,7 +428,18 @@ still gated on the SDR rail, not collapsed behind "Show embedded map" (phase 4).
 Kismet frame is gated on Kismet's own state, which already implies its web UI is answering. Phases 3 onward can start once the open decisions below are
 settled.
 
+**Redesign phase 2 (2026-10-11)**, built on the pipeline in
+[`webdash-design-team.md`](webdash-design-team.md): the Wi-Fi view split into Kismet, survey,
+capture and WPA routes; SDR tabs and the tuner line; the Bench row; hidden views no longer drawn on
+each tick; contrast and reduced-motion fixes in both skins; Learn modules linking to the tool they
+use. Verified in a headless harness that runs the real page with a stubbed status socket (screens
+in both skins at 1280×480, 1440×900, 390×844); not yet on the uConsole's own browser.
+
 ## Open decisions
+
+*Partly superseded (noted 2026-10-11):* progress storage moved server-side with the learning MVP
+(2026-09-25, [`learning-platform-plan.md`](learning-platform-plan.md)). Reconciling this table and
+the build-plan status is item 3 in [`webdash-design-team.md`](webdash-design-team.md).
 
 The owner asked for phase 3 without choosing, so phase 3 (2026-09-23) went with the
 recommendation on the first four rows below: tutor copy-prompt only (nothing built yet),
@@ -356,7 +450,7 @@ square by default. Themed subtitles are on. Any of these can be reversed; see
 | Decision | Options | Recommendation |
 |---|---|---|
 | Ask-the-tutor in the dashboard | (a) copy a prompt for `claude --agent tutor`; (b) a server `/api/tutor` route calling the Claude API | (a) now. (b) needs an API key kept out of the repo, internet access, and a rule that the route can only read status |
-| Progress storage | per-browser `localStorage`, or a server file | `localStorage`: a server file would add a third write path for little gain on a single-operator device |
+| Progress storage | per-browser `localStorage`, or a server file | **Resolved server-side (SQLite), 2026-09-25** with the learning MVP — the original `localStorage` recommendation was superseded so progress survives across devices |
 | Embedded frames | keep all, or only tar1090 | Only tar1090, collapsed; link out to the rest |
 | Precise GPS position on the dashboard | shown, or grid by default with a reveal | Grid by default, matching the repo's location rule |
 | Themed subtitles | on, or off | On, as subtitles only; easy to drop |
@@ -379,7 +473,8 @@ an inline loader in `index.html` sets the attribute before first paint so reload
 
 **Constraints a new skin must keep:** offline only — use fonts already on the device (`fc-match`
 to confirm) or a self-hosted face, never a CDN; keep the status-level contrast ≥ 4.5:1 on its panel
-colour; and don't restyle anything outside the token block and a handful of scoped rules, so the
+colour (and on `--bg` for the status strip), 3:1 for switch tracks and form-control edges
+(`--edge`), all checked by `test_mesh_radio.py`'s contrast tests; and don't restyle anything outside the token block and a handful of scoped rules, so the
 other skins stay intact.
 
 ## Content gaps in `knowledge/`

@@ -67,10 +67,14 @@ the build and is now BOM item 7 as a specified component, ordered from HackerGad
 [order #12253](../records/order-and-warranty.md). Its four leads are `ANT2`/`ANT3`
 (BT1/BT2) and `ANT5`/`ANT6` (Wi-Fi 2/3).
 
-**It has not arrived.** #12253 is a pre-order placed 2026-09-15 with no ship notice as of
-2026-09-16. The shell was closed 2026-09-15 with **all four positions having antennas screwed
-on but no radio behind them** — an antenna fitted is not a radio connected. Only `ANT1` (LoRa),
-`ANT4` (CM4 onboard Wi-Fi), `ANT7` (GPS) and the SDR bulkhead have a radio today.
+**As of 2026-09-16 it had not arrived** (history; see the superseding note below). #12253 was a
+pre-order placed 2026-09-15 with no ship notice by 2026-09-16. The shell was closed 2026-09-15
+with **all four positions having antennas screwed on but no radio behind them** — an antenna
+fitted is not a radio connected. At that point only `ANT1` (LoRa), `ANT4` (CM4 onboard Wi-Fi),
+`ANT7` (GPS) and the SDR bulkhead had a radio.
+
+**Superseded 2026-09-30:** the card arrived and was installed, so `ANT2`/`ANT3`/`ANT5`/`ANT6` are
+now fed by the AC1200. See [`../../hardware/specs/ac1200-mt7921.md`](../../hardware/specs/ac1200-mt7921.md).
 
 On CM4 the card runs at USB 2.0 regardless of its USB-C 3.2 Gen1 interface.
 

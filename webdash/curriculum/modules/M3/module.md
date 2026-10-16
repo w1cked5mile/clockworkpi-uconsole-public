@@ -14,7 +14,7 @@ sources:
 objectives:
   - "**Interpret** fix mode, satellites used versus visible, and HDOP."
   - "**Read** a GGA sentence field by field."
-  - "**Explain** why the missing RTC cell matters for time and logins, and what really slows a first fix."
+  - "**Explain** what the RTC backup cell does for time and logins, and why it doesn't speed up a first fix."
 est_minutes: 90
 today:
   state: ready

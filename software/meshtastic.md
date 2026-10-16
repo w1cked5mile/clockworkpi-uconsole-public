@@ -47,6 +47,7 @@ Base config, then join the regional community meshes:
 meshtastic --host localhost --info                            # confirm meshtasticd + SX1262 up
 meshtastic --host localhost --configure ../configs/meshtastic/us915.yaml
 meshtastic --host localhost --ch-index 0 --ch-set name SCMesh    # primary: sets the frequency
+meshtastic --host localhost --set lora.channel_num 0          # must be 0, or the name is ignored
 meshtastic --host localhost --ch-add NCMesh
 meshtastic --host localhost --ch-set psk default --ch-index 1
 meshtastic --host localhost --set position.gps_mode ENABLED   # see GPS section — needs a restart
@@ -58,8 +59,12 @@ gives slot 88 (924.125 MHz), and `NCMesh` gives slot 59 (916.875 MHz). Secondary
 the primary's frequency. Until 2026-09-23 this node joined SCMesh and NCMesh only as
 **secondaries** on a LongFast primary, so it sat on 906.875 MHz and couldn't hear the owner's
 SCMesh-primary Heltec V3 or M5Stack. Check the live frequency with
-`journalctl -u meshtasticd | grep "Set radio"`. The SCMesh-primary layout matches the owner's other
-nodes. Whether it's what scmesh.us recommends is *unverified*.
+`journalctl -u meshtasticd | grep "Set radio"`; it should read `name=SCMesh … ch=88` and
+`Frequency set to 924.125000`. **A pinned `lora.channel_num` overrides the name:** on 2026-10-11 it
+was found set to `20`, which had held the radio on slot 19 (906.875 MHz) with a `LongFast` primary
+since at least 2026-10-02. It was reset to `0` and the primary restored to `SCMesh` (see
+[`../docs/logs/known-issues.md`](../docs/logs/known-issues.md)). The SCMesh-primary layout matches
+the owner's other nodes. Whether it's what scmesh.us recommends is *unverified*.
 
 Region for your location is **US** (902–928 MHz). Region is a software setting on this hardware —
 the SX1262 covers the whole 860–960 MHz range, so there was no SKU choice to make (see
@@ -137,7 +142,9 @@ journalctl -u mesh-gps-bridge -f        # "sent position: grid=... fix=3D ..."
 How it works: the bridge calls `setFixedPosition()`, so the node **adopts** the position (it shows
 in `getMyNodeInfo` and rebroadcasts on the firmware's normal position schedule, so peers see us
 while we message) rather than a one-shot `sendPosition()` the node ignores. It only updates on a
-move of ≥100 m or every ≤900 s (airtime/write gate); all tunable by env var — see the header of
+move of ≥100 m, at most every 300 s, with no idle keepalive — each `setFixedPosition()` makes
+meshtasticd save config and re-init the radio, and the node already persists and rebroadcasts the
+position itself (airtime/write gate); all tunable by env var — see the header of
 [`../webdash/host-helpers/mesh-gps-bridge.py`](../webdash/host-helpers/mesh-gps-bridge.py).
 Verified end to end 2026-10-02: a live 3D fix (grid `FM03cv`, eph ~13 m, HDOP 0.7) pushed through
 and read back as the node's own fixed position. **Position is only as good as the fix** — indoors,
@@ -178,7 +185,8 @@ ways.
 ## Interacting with the node
 
 - **CLI**: `meshtastic --host localhost --sendtext "hi"` (primary), sends on the primary channel
-  (SCMesh); add `--ch-index 1` for NCMesh.
+  (SCMesh); add `--ch-index 1` for NCMesh. Both go out on the primary's frequency (924.125 MHz), so
+  NCMesh nodes on their own 916.875 MHz slot won't hear them.
 - **Native GUI**: `gtk-meshtastic-client` (installed above) — connect via **TCP/IP** to
   `localhost`. No CLI flags or config file to pre-seed the connection; it has to be entered in
   the app's connection screen each time (confirmed 2026-09-17 — no `--host` option, no relevant
@@ -240,20 +248,25 @@ and a real stats line), and a notification sent from a user-service context reac
 disabled itself as designed. To re-arm it: `systemctl --user enable --now first-packet-alert`. It
 runs only while the desktop session is logged in, because lingering is off for this user.
 
-## MQTT internet-bridging (not configured)
+## MQTT internet-bridging (found enabled 2026-10-11; owner decision open)
 
 Both NCMesh and SCMesh publish public MQTT broker credentials on their own sites for
 internet-bridging local RF traffic to their wider networks, but meshtasticd's MQTT module only
 holds one broker connection at a time — bridging both simultaneously isn't possible without
 picking one. Deliberately left unconfigured on 2026-09-17 (both channels' `uplinkEnabled`/
-`downlinkEnabled` are `false`); revisit and pick a single broker (`mqtt.ncmesh.net` or
-`mqtt.scmesh.us`) if internet-bridging is wanted. Credentials intentionally not copied into this
+`downlinkEnabled` were `false` then). **That is no longer the state:** on 2026-10-11 the MQTT module
+was found enabled, connected to `mqtt.scmesh.us`, with uplink on for the SCMesh primary and map
+reporting on. See [`../docs/logs/known-issues.md`](../docs/logs/known-issues.md); keeping or
+removing it is open for the owner. The original plan was to pick a single broker
+(`mqtt.ncmesh.net` or `mqtt.scmesh.us`) only if internet-bridging was wanted. Credentials intentionally not copied into this
 repo even though they're public-by-design — see each site for current values.
 
 ## Cautions
 
 - Do not enable the rail or transmit without an antenna.
-- The default `LongFast` channel is public and unencrypted by design. Generate a PSK for private
+- The default `LongFast` channel, like `SCMesh` and `NCMesh`, is encrypted with a publicly known
+  default key, so it is effectively public: any Meshtastic radio can read it, it is relayed up to
+  the hop limit (3), and other people's gateways may post it online. Generate a PSK for private
   use (`meshtastic --ch-set psk random --ch-index 0`) and **never commit it**. `SCMesh`/`NCMesh`'s
   shared default key (`AQ==`) is not a real secret — see Configure above — but a real generated
   PSK for a private channel is, and stays off this repo per this repo's no-secrets convention.
@@ -261,5 +274,7 @@ repo even though they're public-by-design — see each site for current values.
   `mesh-gps-bridge` service supplies the fix from gpsd (see "Position from gpsd" above). This
   publishes location to the mesh over RF whenever it moves ≥100 m. To stop sharing location,
   `sudo systemctl disable --now mesh-gps-bridge.service` and
-  `meshtastic --host localhost --remove-position`. Precise coordinates are transmitted by design
-  but are never written to this repo (grid square only) — see [`gps.md`](gps.md#privacy).
+  `meshtastic --host localhost --remove-position`. The primary channel's `positionPrecision` is 13
+  (2026-10-11 `--info`), which keeps the top 13 bits of each coordinate: about 2.9 km, per the
+  Meshtastic position-precision table. NCMesh's setting is *unverified*. Position is never written
+  to this repo (grid square only) — see [`gps.md`](gps.md#privacy).

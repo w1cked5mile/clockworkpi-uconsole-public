@@ -69,7 +69,7 @@ python3 webdash/host-helpers/learn-compile.py           # compile → ~/.local/s
 | [`webdash/`](webdash/) | Operator dashboard — Docker app aggregating aiov2_ctl/Kismet/gpsd/meshtasticd/tar1090 status |
 | [`images/`](images/) | Build photos and diagrams |
 | `presentation/` | Conference talk: deck source, CFP material, demo plan |
-| [`.claude/skills/`](.claude/skills/README.md) | Repo-scoped Claude Code skill: build a documentation-first hardware repo |
+| [`.claude/skills/`](.claude/skills/README.md) | Repo-scoped Claude Code skills: build a documentation-first hardware repo; diagnose bugs, test-first, grill a plan, write for agents |
 
 ## Documentation
 
@@ -82,6 +82,7 @@ python3 webdash/host-helpers/learn-compile.py           # compile → ~/.local/s
 - [webdash architecture & build plan](docs/reference/webdash-architecture.md)
 - [webdash redesign and learning layer (proposed)](docs/reference/webdash-design.md)
 - [Learning platform plan — the Chart Table (proposed)](docs/reference/learning-platform-plan.md)
+- [webdash design team — the bar, roster and pipeline](docs/reference/webdash-design-team.md)
 - [GPU crack-offload host (Kali WSL tailnet node)](docs/reference/gpu-crack-offload-host.md)
 - [Hardware spec sheets](hardware/specs/) · [Datasheet index](hardware/datasheets/README.md) · [Mechanical notes](hardware/mechanical.md)
 

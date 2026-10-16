@@ -3,7 +3,7 @@ id: M6
 title: ADS-B — the sky overhead
 themed_title: Passage 6 · Lookout
 discipline: aerospace
-station: sdr
+station: sdr/adsb
 prerequisites:
   - {id: M1b, soft: false}
 sources:

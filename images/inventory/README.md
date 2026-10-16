@@ -76,6 +76,21 @@ The `20260930-ac1200-card-front.jpg` source is 1217 px on its long edge, already
 commit ceiling, so the committed copy is the source frame unscaled; the other two are downscaled to
 a 1600 px long edge. Frames carry no usable EXIF.
 
+## 2026-10-11 — Meshnology LiPo pack in a frame, with extension lead
+
+Same Meshnology 10000 mAh / 37 Wh pack as the 2026-09-14 and 2026-09-16 frames, photographed again
+with a black bar frame around it and a lead terminated for the battery board. Pack still **not
+fitted** at time of capture. Wire count, connector types and polarity below are *photo readings,
+unverified* — the PH2.0 match and polarity check in [`../../CLAUDE.md`](../../CLAUDE.md) still
+apply before connecting.
+
+| File | Subject | Source file | sha256 (source) |
+|---|---|---|---|
+| [`20261011-lipo-meshnology-frame-and-lead.jpg`](20261011-lipo-meshnology-frame-and-lead.jpg) | **LiPo pack in frame** — black frame (two long bars, two cross bars) over the label face; four leads (2 red, 2 black) from the cell edge into an inline white 2-pin connector, then a red/black pigtail to a smaller white 2-pin plug | 2576x1932, 1.2 MB | `97d2d6b3b3aaf53833e2cf91686979ade2651d6130c075309747de66600daba8` |
+
+Committed copy downscaled to a 1600 px long edge with metadata stripped. The source carried no
+camera make/model, no `DateTimeOriginal`, and no GPS block.
+
 **Handling note for the SSD label frame.** The drive is an OPAL self-encrypting model, and its
 label carries the factory revert code alongside the part and serial numbers. That code is
 **deliberately not transcribed anywhere in this repository** — it is a reset credential under the

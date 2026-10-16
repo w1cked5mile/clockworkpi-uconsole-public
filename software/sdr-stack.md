@@ -91,9 +91,16 @@ broadcast/airband" section. It's the same CLI tools underneath (`rtl_power`, `rt
   streams it to an `<audio>` element, so it plays over the tailnet. NOAA weather radio
   (162.400–162.550 MHz, NBFM) has a dedicated channel picker.
 
-Like the CLI, it needs the tuner free: the bridge **stops `readsb` for the duration and restarts
-it after** (the same idea as `sdr-swap.sh free`), and it requires the **SDR rail already on**. One
-tuner means hunt and listen are mutually exclusive.
+Like the CLI, it needs the tuner free and the **SDR rail already on**. One tuner means the
+applications (ADS-B, hunt, listen, the airband scanner) are mutually exclusive. Since 2026-10-03
+ADS-B is one you start yourself: the bridge stops `readsb` if it is running and does **not**
+restart it afterwards.
+
+**A new listen takes the tuner from the current one** (latest wins, 2026-10-11), so picking another
+station or switching between listen and the scanner just works. Before that the bridge answered the
+new request with 409 "SDR is busy (listen)" for about 3 s after the old stream was dropped (see
+[`known-issues.md`](../docs/logs/known-issues.md)). A hunt or ADS-B is not interrupted: a listen
+still gets 409 while either holds the tuner.
 
 **Broadcast AM (530–1710 kHz) is deliberately absent** — it's below this front end's ~24 MHz floor
 and needs an upconverter this build doesn't have (see

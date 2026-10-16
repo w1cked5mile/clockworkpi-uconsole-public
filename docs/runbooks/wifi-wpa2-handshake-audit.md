@@ -119,8 +119,8 @@ aircrack-ng handshake-01.cap    # lists networks; the target should say "1 hands
 
 **Pass:** the target BSSID row shows a handshake. If it doesn't, return to step 3 (the client may
 have only sent a partial exchange). `.cap` files can be merged if you captured across several:
-`mergecap -w merged.cap handshake-*.cap` (from `wireshark-common`, *not installed by default —
-verify before relying on it*).
+`mergecap -w merged.cap handshake-*.cap` (from `wireshark-common`, installed on Fancy — verified
+2026-10-11).
 
 ## 5. Recover the PSK (offline)
 

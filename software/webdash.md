@@ -95,7 +95,8 @@ name for the full reasoning):
 ```bash
 sudo tailscale serve --bg --https=2501 localhost:2501    # Kismet's own web UI
 sudo tailscale serve --bg --https=9443 https+insecure://localhost:9444    # meshtasticd's own web UI (HTTPS, self-signed)
-tailscale serve status   # should list all three (443, 2501, 9443), each "(tailnet only)"
+sudo tailscale serve --bg --https=8073 localhost:8073    # OpenWebRX receiver (its own admin login)
+tailscale serve status   # should list all four (443, 2501, 9443, 8073), each "(tailnet only)"
 ```
 
 **meshtasticd's web UI has no login of its own** — confirmed 2026-09-21, a plain `GET` to `:9443`
@@ -169,8 +170,8 @@ switched by the URL hash. There is no framework and no build step: ES modules in
 | `#/` | Six tiles: System and Power on the top row; Meshtastic, GPS, ADS-B, Wi-Fi survey below. Each has a status, one headline figure, two facts, and its rail switch |
 | `#/mesh` | Node details, message log and send box, LORA switch |
 | `#/gps` | Fix and satellites. Position shows as a **Maidenhead grid square**; *Show coordinates* reveals latitude/longitude for this page load only |
-| `#/sdr` | ADS-B counts, SDR switch, and the embedded tar1090 map (loaded only while this view is open and the SDR rail is on) |
-| `#/wifi` | Kismet state, the passive-only note, the verified start command, and the Kismet UI link. No embedded frame |
+| `#/sdr` | Tabs (`#/sdr/<tab>`): ADS-B, Hunt, Listen, Receiver. ADS-B counts, SDR switch, and the embedded tar1090 map (loaded only while this view is open and the SDR rail is on) |
+| `#/wifi` | Tabs (`#/wifi/<tab>`, bare `#/wifi` opens Kismet): **Kismet** (scan state, passive-only note, verified start command, Kismet UI link), **Site survey** (`#/wifi/survey`), **Packet capture** (`#/wifi/capture`, tshark), **WPA audit** (`#/wifi/wpa`, authorized-only). One shared USB rail switch on every tab. `#/survey`, `#/capture` and `#/wpa` still resolve — they redirect to the matching tab |
 | `#/power` | All four rail switches with what each powers, and every field the bridge reports |
 | `#/system` | CPU, load, memory, disk, temperature, uptime |
 
@@ -196,16 +197,73 @@ add a safety net the CLI doesn't already lack.
 
 ## Mesh messages
 
-The Meshtastic panel has a message log and a send box. Pick a channel, type up to 200 bytes, and
-press **Send**. The message is broadcast over LoRa from this node, the same as
-`meshtastic --host 127.0.0.1 --sendtext "…" --ch-index N`. Incoming text on any enabled channel
+The Meshtastic panel has a message log and a transmit control. Pick a channel, type up to
+200 bytes (UTF-8, counted as you type), and press **Transmit on ⟨channel⟩**. The message is
+broadcast over LoRa from this node with a relay check (`wantAck`), the same as
+`meshtastic --host 127.0.0.1 --sendtext "…" --ch-index N --ack`. Incoming text on any enabled channel
 shows in the log within about 4 s, with sender, channel and SNR. This replaces the broken
 Meshtastic web UI for messaging. Design and limits:
 [Mesh text messaging](../docs/reference/webdash-architecture.md#mesh-text-messaging).
 
 - The log is in memory only. Restarting the container clears it.
-- **Sending transmits for real**, including on public channels such as LongFast.
-- Send and receive over the air are **unverified** as of 2026-09-23. The API, validation and login
+- **Sending transmits for real**, including on public channels such as SCMesh.
+- **Sender place.** A received message's header names the nearest town to the sender's last
+  broadcast position (`near Albany, GA`, `~18 km from Albany, GA`). It is looked up offline from
+  a local GeoNames list, and only the place name reaches the page, never coordinates. Senders
+  that don't broadcast a position get no label. Build the list once (about 17 s, 10 MB, needs
+  internet), then restart the container:
+
+  ```bash
+  python3 webdash/host-helpers/places-build.py   # -> ~/.local/share/uconsole-webdash/data/places.tsv
+  ```
+
+  Expected output ends `wrote 236017 places …` (the count drifts as GeoNames updates). Without the
+  file the feature is off. Place data: [GeoNames](https://www.geonames.org/), CC BY 4.0. Design:
+  [Sender place](../docs/reference/webdash-architecture.md#sender-place). On Fancy the list was
+  built 2026-10-09 and is still in place.
+- **The control says what it does (redesign phase 1, 2026-10-11).**
+  - It shows the frequency, computed from config and checked against the radio's own
+    `Frequency set to` log line. If the two disagree it says "unknown".
+  - It names the radio and says whether the channel is public. A secondary channel gets a note:
+    it goes out on the primary's frequency, so its own community won't hear it.
+  - When blocked, it gives the reason and the fix: rail off or unknown, meshtasticd down or not
+    answering, region unset, transmit off, ham mode, no channels, or over 200 bytes.
+  - The server checks the same readiness itself before sending. `POST /api/mesh/send` returns
+    409 with the reason, or 400 for a channel that isn't enabled.
+- **Delivery is reported only as far as the radio witnessed it.**
+  - Every send starts as "Queued in meshtasticd for ⟨f⟩ MHz."
+  - It becomes "Relayed" when our radio hears a neighbour repeat it, "Echoed by the MQTT
+    server", "No relay heard after 3 sends", "Not sent: ⟨reason⟩" when the radio refused it, or
+    "No answer… within 60 s".
+  - Separately, "Handed to the radio" appears if the transmit counter rose after the send.
+  - With no relay heard, the radio re-sends up to 2 more times, about 8 s apart. The **Ask for a
+    relay check** checkbox (ticked by default, remembered per browser) turns this off for a send:
+    it goes out once and shows only "Queued" plus the transmit counter.
+    `POST /api/mesh/send` takes `want_ack` (default `true`).
+  - Copy and timings were reviewed by `senior-rf-engineer`. The strings live in
+    [`../webdash/app/collectors/mesh_radio.py`](../webdash/app/collectors/mesh_radio.py).
+- New status fields, under `mesh`:
+  - `radio`: region, preset, `freq_mhz`/`freq_slot`/`freq_source`/`freq_check`,
+    `tx_power_dbm`, `tx_enabled`, `is_licensed`, `mqtt_enabled`, `position_on`.
+  - `channel_detail`: per channel, the role, `public`, `uplink`, `position_km` and
+    `own_freq_mhz`.
+  - `local_stats`, `tx` (readiness), and `tx_copy`.
+- **MQTT on/off switch (2026-10-11).** Below the transmit control, the Mesh view shows whether
+  this node posts to an MQTT broker, which channels it uplinks, and what map reporting publishes.
+  One button turns the MQTT module on or off: `POST /api/mesh/mqtt {"enabled": bool}`, behind the
+  login, refused with 409 when meshtasticd isn't answering.
+  - It writes only `mqtt.enabled`. Channel uplink flags and the broker login are unchanged.
+  - **Each toggle restarts meshtasticd.** The firmware's `saveChanges(…, shouldReboot)` runs after
+    about 7 s. The panel reconnects by itself in about 15–30 s. As on any restart, the node
+    announces itself on the mesh when it comes back.
+  - Turning it on with no broker address set would use the firmware default,
+    `mqtt.meshtastic.org`. The button names the broker it will use.
+- The frequency cross-check needs the host bridge's `GET /mesh-radio`. After pulling a change to
+  the bridge, run `sudo systemctl restart uconsole-aiov2-bridge`; until then `freq_check` stays
+  `unchecked`. Live on Fancy since 2026-10-11 17:19Z: it reports 924.125 MHz and 22 dBm from the
+  meshtasticd journal, and the check reads `agrees`.
+- Send and receive over the air are **unverified** as of 2026-09-23 (re-check with phase 1i:
+  one owner-run send, with the SDR recording, then the delivery tier). The API, validation and login
   gate were tested, but no message was sent and the node had received 0 packets that day. To
   verify, send from the dashboard and confirm a second node hears it, then reply.
 
@@ -259,17 +317,21 @@ bridge restart.
 
 `GET /api/history` returns the last 2 h of vitals at one sample per 30 s: CPU %, CPU temperature,
 pack voltage, bridge power reading, GPS satellites used and mesh nodes seen. It is held in memory
-and empties when the container restarts. Nothing in the UI draws it yet; it is there for the
-redesign's sparklines ([`../docs/reference/webdash-design.md`](../docs/reference/webdash-design.md)).
+and empties when the container restarts. The sparklines draw it (2026-10-15): CPU temperature and
+battery voltage on the Overview tiles, and larger ones on the System and Power views. See
+[`../docs/reference/webdash-design.md`](../docs/reference/webdash-design.md#sparklines).
 
 ## Other apps: proxied vs. linked
 
 - **ADS-B map (tar1090)** — proxied *through* this app: `Open map ↗` in the ADS-B panel, or
   `https://<device>.<tailnet>.ts.net/apps/tar1090/` directly. No separate Tailscale mapping
   needed; it's this app's own session gating it, and tar1090 has none of its own.
-- **Kismet** and **meshtasticd's web UI** — linked (`Open Kismet UI ↗` / `Open Meshtastic UI ↗`),
-  not proxied: each gets its own `tailscale serve` port mapping (above) and opens in a new tab.
-  `GET /api/links` (session-gated) is what the page fetches to populate those hrefs.
+- **Kismet**, **meshtasticd's web UI**, and **OpenWebRX** (the SDR → Receiver tab) — linked
+  (`Open Kismet UI ↗` / `Open Meshtastic UI ↗` / `Open the receiver ↗`), not proxied: each gets its
+  own `tailscale serve` port mapping (above) and opens in a new tab. `GET /api/links`
+  (session-gated) is what the page fetches to populate those hrefs. OpenWebRX owns the single tuner
+  while it runs, so the host SDR bridge starts/stops it and blocks the other SDR apps meanwhile —
+  see [`openwebrx.md`](openwebrx.md).
 
 Why the split, and the meshtasticd-has-no-login-of-its-own caveat, are in the architecture doc's
 [Other apps](../docs/reference/webdash-architecture.md#other-apps-proxied-vs-linked) section —

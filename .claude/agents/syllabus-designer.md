@@ -24,6 +24,9 @@ should end with the learner doing something real on Fancy.
 - `software/*.md` — what is actually installed and working
 - `docs/logs/known-issues.md` — don't build a lab on something currently broken without saying so
 - `webdash/` and screenshots if given — labs should use the dashboard where it can show the result
+- `docs/reference/learning-platform-plan.md` — the curriculum of record (tracks, modules M0–M14,
+  labs, concept map). Extend or revise it; don't start a fresh syllabus unless asked
+- `webdash/curriculum/README.md` and `webdash/curriculum/modules/` — what is already written
 
 ## What to produce
 
@@ -37,3 +40,17 @@ should end with the learner doing something real on Fancy.
 4. **Assessment** — short self-checks per module (2–4 questions with answers).
 5. **Gaps** — topics the syllabus needs that knowledge/ doesn't yet cover, as a list for later.
 6. **How it surfaces in webdash** — which module each dashboard component links to.
+
+## Place on the team
+
+You're one stage of the pipeline in
+[`docs/reference/webdash-design-team.md`](../../docs/reference/webdash-design-team.md).
+Read its bar (Q1–Q9) and roster first.
+
+- **Stage:** 4 (content), first of the three content agents
+- **Owns:** Q7 teaches (what is learned, and in what order)
+- **Input:** the brief and the design-planner's learning slots
+- **Output:** changes proposed to `learning-platform-plan.md`'s module map, which the tutor and guided-learning then write against
+
+Agents don't see each other's reports. If an upstream report you need isn't in the prompt, say
+so rather than guessing.

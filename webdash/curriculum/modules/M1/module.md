@@ -18,7 +18,7 @@ objectives:
 est_minutes: 60
 today:
   state: degraded
-  reason: "The fitted 18650 cells are unverified (labelled 9900 mAh, no brand). The lab runs on battery for about 3 minutes and stops itself at 3.5 V or 30%."
+  reason: "The fitted Meshnology 1S pair (JP1 closed, 2026-10-11) is a known pack, but the device cuts power with no warning at ≈3.53 V under load and the % gauge is wrong. The lab runs on battery for about 3 minutes and stops itself at 3.6 V (watch voltage, not %)."
 ---
 
 Everything on Fancy runs from one lithium cell's worth of energy. Knowing what each radio costs

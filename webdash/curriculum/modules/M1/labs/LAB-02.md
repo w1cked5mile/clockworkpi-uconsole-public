@@ -37,7 +37,7 @@ steps:
     text: "Plug the charger back in."
     check: {type: status, path: aiov2.power_num.on_battery, op: eq, value: false}
 safety_stops:
-  - {type: status, path: aiov2.power_num.voltage_v, op: lte, value: 3.5}
+  - {type: status, path: aiov2.power_num.voltage_v, op: lte, value: 3.6}
   - {type: status, path: aiov2.power_num.capacity_pct, op: lte, value: 30}
 restore:
   - {type: status, path: aiov2.rails.SDR.on, op: eq, value: false}
@@ -47,4 +47,5 @@ evidence: [aiov2.power_num.voltage_v]
 
 Expect roughly +1.1 to +1.6 W (*estimate*): the rail alone measured +0.64 W with nothing
 running, and readsb decoding adds more. Record what you get — it becomes the measured figure.
-If the cell falls to 3.5 V or 30% the lab stops on its own.
+If the cell falls to 3.6 V the lab stops on its own — watch voltage, since the % gauge is wrong on
+this pack and the device cuts out with no warning at ≈3.53 V.

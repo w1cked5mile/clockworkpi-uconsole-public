@@ -1,0 +1,55 @@
+{
+    "_readme": "Seed config for OpenWebRX on Fancy's RTL-SDR, applied on top of the image defaults. Apply: docker cp configs/openwebrx/settings.json openwebrx:/var/lib/openwebrx/settings.json then docker restart openwebrx. Verify: docker logs openwebrx shows no 'out of range' warnings and curl 127.0.0.1:8073 returns 200. Rollback: delete /var/lib/openwebrx/settings.json from the volume and restart to fall back to OpenWebRX's built-in defaults. OpenWebRX ignores this key.",
+    "version": 7,
+    "receiver_name": "Fancy — uConsole AIO V2",
+    "receiver_location": "Maidenhead grid only",
+    "sdrs": {
+        "rtlsdr": {
+            "name": "AIO V2 RTL-SDR (R820T)",
+            "type": "rtl_sdr",
+            "rf_gain": "auto",
+            "profiles": {
+                "fm_bcast": {
+                    "name": "FM broadcast (88-108)",
+                    "center_freq": 98000000,
+                    "rf_gain": "auto",
+                    "samp_rate": 2048000,
+                    "start_freq": 98100000,
+                    "start_mod": "wfm"
+                },
+                "airband": {
+                    "name": "Airband (AM voice)",
+                    "center_freq": 125000000,
+                    "rf_gain": "auto",
+                    "samp_rate": 2048000,
+                    "start_freq": 124000000,
+                    "start_mod": "am"
+                },
+                "noaa_wx": {
+                    "name": "NOAA weather (NFM)",
+                    "center_freq": 162475000,
+                    "rf_gain": "auto",
+                    "samp_rate": 250000,
+                    "start_freq": 162400000,
+                    "start_mod": "nfm"
+                },
+                "2m": {
+                    "name": "2m ham (144-146)",
+                    "center_freq": 145000000,
+                    "rf_gain": "auto",
+                    "samp_rate": 2048000,
+                    "start_freq": 145500000,
+                    "start_mod": "nfm"
+                },
+                "70cm": {
+                    "name": "70cm ham (430-440)",
+                    "center_freq": 439000000,
+                    "rf_gain": "auto",
+                    "samp_rate": 2048000,
+                    "start_freq": 439275000,
+                    "start_mod": "nfm"
+                }
+            }
+        }
+    }
+}

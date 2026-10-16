@@ -51,10 +51,11 @@ The other HackerGadgets order, **#12253 (AC1200 Wi-Fi card)**, **arrived and was
 **2026-09-23: root runs from NVMe, verified on the device.** Root is `/dev/nvme0n1p2` (WD PC
 SN730, reused, 21% wear, SMART `PASSED`, not OPAL-locked). EEPROM is `2026/05/17` with `BOOT_ORDER=0xf416`.
 The microSD was removed 2026-09-23 and NVMe-only boot passed; the card is kept as a fallback. The earlier paragraph's "boots from microSD" and
-"stock battery board" statements are superseded. The Meshnology pack is **still not fitted**; the interim 18650 pair is in the NVMe board's holder,
-with **`JP1` open** (correct for 18650s) and the reverse-polarity LED **not lit** (owner, 2026-09-23). Onboard
-Ethernet **links at 1 Gbps** (checklist 2.2 passes), and the pack **charges** at ~2 A from the
-charger. Test results are in `docs/logs/build-log.md` (2026-09-23 entries).
+"stock battery board" statements are superseded. On that date the interim 18650 pair was in the NVMe board's holder,
+with **`JP1` open** and the reverse-polarity LED **not lit** (owner); superseded 2026-10-11, see below. Onboard
+Ethernet **links at 1 Gbps** (checklist 2.2 passes), and the pack **charges** (the PMIC reported
+~2 A, but see the charge-ADC caveat below — charge `current_now` over-reads, so that is an upper
+bound). Test results are in `docs/logs/build-log.md` (2026-09-23 entries).
 
 **GNSS 3D fix confirmed on hardware** (first obtained 2026-09-23; recorded in detail 2026-10-04).
 gpsd 3.25 over `/dev/serial0` (NMEA 0183, 9600 bps); a 2026-10-04 fix used **15 satellites** (10
@@ -64,27 +65,36 @@ not yet measured** (the capture opened already fixed); a cold-reset timed run is
 [`TODO.md`](TODO.md). See [`knowledge/rf-fundamentals/findings/2026-10-04-first-fix.md`](knowledge/rf-fundamentals/findings/2026-10-04-first-fix.md)
 and `software/gps.md`.
 
+**2026-10-11: on the Meshnology LiPo.** The owner removed the 18650s and the NVMe board's holder,
+bridged `JP1` closed (location: right of the JST connector and `R14`, top edge of the `BAT2`
+outline; photos in `images/assembly/`), and connected the Meshnology pair (both packs on a Y harness,
+≈74 Wh nominal). The PMIC read it **charging at ≈1.65 A, 3.97 V, 41 %** at 22:50Z (charge current an
+upper bound — see the charge-ADC caveat below), and the pouches stayed cool. The board is now
+LiPo-only. Don't refit 18650s with `JP1` closed.
+
 Open blockers:
-- **The interim 18650 pack in service is unverified**, and the device powered on before that was
-  resolved. The fitted cells are wrapped `9900mAh` — roughly 2.8× what an 18650 physically holds —
-  with no brand or batch code, in a **parallel** 1S pair. Weigh, voltage-match, and capacity-test
-  them — [`docs/logs/known-issues.md`](docs/logs/known-issues.md). They were meant to be temporary
-  until the NVMe battery board arrived; **it now has**, so the swap to the Meshnology LiPo is
-  unblocked.
-- **`JP1` is open** (owner, 2026-09-23), correct for the 18650s now fitted. It must be **soldered
-  closed before the Meshnology LiPo goes on** — a current-path setting, not a preference. Its
-  board location is still unrecorded.
-- **The Meshnology pack's PH2.0 connector has not been matched against the board.** Confirm type
-  and polarity with a meter before connecting. Order record: Amazon #114-7650902-4482665
-  (2026-09-09, $42.79/pair).
-- **Pack energy is unmeasured.** The runtime numbers in
-  [`docs/reference/power-budget.md`](docs/reference/power-budget.md) were re-sized 2026-09-23 to
-  the Meshnology 37 Wh pack on the measured ~5.0 W idle, but usable Wh is still an estimate until a
-  full discharge, and the fitted 18650s have no capacity figure at all.
-- **The 18650 cells have no purchase record at all** — provenance unknown. See Discrepancies in
-  [`docs/checklists/inventory-and-inspection.md`](docs/checklists/inventory-and-inspection.md).
-- **No RTC backup cell is fitted** (confirmed 2026-09-23), so the RTC loses time on every full
-  power removal. Checklist 3.1 cannot pass until one is fitted.
+- **The bare holder pads on the NVMe board need insulating before the shell is closed.** Photos
+  show four tinned contact remnants at the old `BAT1`/`BAT2` positions, standing proud of the board.
+  The AC1200's coax runs across the right-hand pair, which sit on the `+` side and are likely live
+  at pack voltage (*unverified*). A pouch pressed onto them could be punctured. Trim them flat and
+  cover them with Kapton tape. See the build log, 2026-10-11.
+- **The owner's DM-20 meter is not trusted.** It read the fitted pack at 4.8 V while the PMIC read
+  3.97 V on charge, and 18650s at 4.3 V against ≈4.2 V. The earlier "4.48 V" on the Meshnology
+  packs is treated as this meter's error. Confirm with a fresh meter battery or a second meter
+  ([`docs/logs/known-issues.md`](docs/logs/known-issues.md)).
+- **The power cuts out with no warning at ≈3.5 V under load.** The first discharge of the fitted
+  pair (2026-10-12/13) delivered **52.2 Wh in 13.7 h** (3.8 W average; 3.37 W idle with the screen
+  off, plus unexplained +2 W episodes). It then lost power at ≥3.53 V with no knee in the curve, so charge was
+  probably left in the pack. The 18650s cut at 3.49 V too, so the cause is likely on the system
+  side and is *unverified*. The fuel gauge % is wrong on this pack (the device tree describes
+  6.7 Ah), so watch `voltage_now`: plug in by 3.60 V, shut down by 3.55 V. A guard at 3.45 V never
+  fires. The 2026-10-13 recharge did not address the cut (still open), but it did surface a related
+  caveat: **charge `current_now` over-reads (≥~1.4×)**, so all "charging at … A" figures are upper
+  bounds and the 52 Wh discharge figure carries residual uncertainty until the charge ADC is settled.
+  See [`docs/reference/power-budget.md`](docs/reference/power-budget.md) and
+  [`docs/logs/known-issues.md`](docs/logs/known-issues.md).
+- ~~**No RTC backup cell is fitted**~~ — **resolved 2026-10-10.** The owner fitted and tested the
+  cell, and checklist 3.1 passes; the next boot set the clock from the RTC with no power-loss flag.
 - ~~**Four antennas have no radio behind them**~~ — **resolved 2026-09-30.** `ANT2`/`ANT3`/`ANT5`/`ANT6`
   are fed by the AC1200, which arrived, was installed, and is fully verified: `wlan1` monitor mode on
   2.4/5/6 GHz, and `hci1` passive-BLE behaviour (no `bluetoothd` auto-scan/connect, passive scan
@@ -100,6 +110,7 @@ Open blockers:
 | A pass/fail list run once at a milestone | `docs/checklists/` |
 | Setup notes for one application | `software/<app>.md` |
 | A file that gets copied onto the device | `configs/<subsystem>/` |
+| A 3D-printable part (`.3mf`/`.stl`) | `hardware/stl/`, listed in its README |
 | A purchase, order, invoice, or warranty fact | `docs/records/` |
 | Something learned about RF, independent of this device | `knowledge/<discipline>/learned/` |
 | An observation, capture, or signal ID | `knowledge/<discipline>/findings/` |
@@ -155,11 +166,13 @@ Legal posture, restated because it constrains content: this platform is for **re
 learning, and licensed transmitting**. Wardriving here means passive observation only — no
 deauth, no handshake capture, no association, no cracking against any network without either
 **owning it or holding written authorization to test it**. That carve-out is explicit, not
-implied: `aircrack-ng` is installed (2026-09-21, see [`software/aircrack-ng.md`](software/aircrack-ng.md))
-specifically for authorized WPA/WPA2 auditing — own gear or a documented engagement, nothing else.
-Do not add material that assists intrusion against networks outside that boundary, decoding of
-protected or encrypted communications, or unlicensed transmission. See the responsible-use
-section in [`knowledge/README.md`](knowledge/README.md).
+implied: two active-auditing tools are installed behind it, each gated to **own gear, a documented
+engagement, or a CTF whose rules permit it — nothing else**: `aircrack-ng` (2026-09-21, authorized
+WPA/WPA2 auditing, see [`software/aircrack-ng.md`](software/aircrack-ng.md)) and `netexec`
+(2026-10-13, authorized AD/network-service auditing — SMB/LDAP/WinRM/etc., see
+[`software/netexec.md`](software/netexec.md)). Do not add material that assists intrusion against
+networks outside that boundary, decoding of protected or encrypted communications, or unlicensed
+transmission. See the responsible-use section in [`knowledge/README.md`](knowledge/README.md).
 
 ## Repository skills and agents
 
@@ -167,6 +180,13 @@ section in [`knowledge/README.md`](knowledge/README.md).
 this repo's method — structure, sourcing rules, conflict map, staged configs, bring-up acceptance
 checklists — for scaffolding and driving other hardware builds. It loads automatically in sessions
 working here; see [`.claude/skills/README.md`](.claude/skills/README.md) to use it elsewhere.
+
+Four working-method skills sit beside it (added 2026-10-11, adapted from
+[mattpocock/skills](https://github.com/mattpocock/skills); provenance and local changes in the
+[skills README](.claude/skills/README.md)): `diagnosing-bugs` (a red-capable feedback loop before
+any hypothesis; device loops read-only and never transmitting), `tdd` (webdash's `unittest`
+suites), `grilling` (stress-test a plan; settled decisions go to `decisions.md`) and
+`writing-for-agents` (for this file, the agents and the skills).
 
 Two read-only subagents support it: [`hw-research`](.claude/agents/hw-research.md) for per-component
 sourcing (spawn one per component, in parallel) and [`repo-audit`](.claude/agents/repo-audit.md) for
@@ -185,8 +205,11 @@ to see the clock. The clock state is per machine and lives in
 `~/.local/state/clockworkpi-uconsole/`. The first two runs showed the verdicts vary between runs,
 so treat an "ok" as likely rather than proven.
 
-Seven more agents cover webdash design and learning (six added 2026-09-23, `senior-rf-engineer`
-2026-09-24). All are read-only unless a prompt asks otherwise:
+Eight more agents cover webdash design and learning (six added 2026-09-23, `senior-rf-engineer`
+2026-09-24, `webdash-qa` 2026-10-11). They work as one pipeline with a shared quality bar, defined
+in [`docs/reference/webdash-design-team.md`](docs/reference/webdash-design-team.md): run them in
+its stage order and pass each one the upstream reports it needs. All are read-only unless a prompt
+asks otherwise:
 
 | Agent | Role |
 |---|---|
@@ -197,6 +220,7 @@ Seven more agents cover webdash design and learning (six added 2026-09-23, `seni
 | [`tutor`](.claude/agents/tutor.md) | Explains concepts using this device's real state; writes in-dashboard explainer content |
 | [`guided-learning`](.claude/agents/guided-learning.md) | Step-by-step missions whose steps are checked against live webdash data |
 | [`senior-rf-engineer`](.claude/agents/senior-rf-engineer.md) | Technical review: RF physics and numbers, and that every exercise fits Fancy's actual hardware and the legal posture |
+| [`webdash-qa`](.claude/agents/webdash-qa.md) | Rendered-page evidence: screenshots per viewport and skin, keyboard pass, measured contrast, motion and CM4 performance |
 
 Before committing a batch, run the mechanical audit as well as the link check:
 

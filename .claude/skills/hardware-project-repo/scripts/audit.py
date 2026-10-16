@@ -53,7 +53,11 @@ def walk(root, exts=None):
         for name in filenames:
             if exts and not name.endswith(exts):
                 continue
-            yield os.path.join(dirpath, name)
+            path = os.path.join(dirpath, name)
+            # Regular files only: opening a FIFO (e.g. a stray notify pipe) blocks forever.
+            if not os.path.isfile(path):
+                continue
+            yield path
 
 
 def read(path):

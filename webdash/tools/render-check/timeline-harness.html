@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- ./styles.css and ./js/ are symlinks to webdash/app/static/{styles.css,js}
+       that render-timeline.sh stages next to a copy of this file in a temp dir.
+       Opening this file in place won't work — run render-timeline.sh. -->
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main id="main">
+    <section class="view" data-view="timeline" aria-labelledby="timeline-title">
+      <div class="view-head">
+        <a class="back" href="#/">← Overview</a>
+        <h1 class="view-title" id="timeline-title">Build log</h1>
+      </div>
+      <div id="timeline-root" class="timeline"></div>
+    </section>
+  </main>
+  <!-- Imports the REAL module, so the screenshot reflects the shipping timeline.js.
+       main.js is deliberately NOT loaded: its status WebSocket reconnect loop keeps the
+       page busy forever, which hangs headless chromium on exit. The timeline view is
+       static, so mounting it directly is a faithful render. -->
+  <script type="module">
+    import { renderTimeline } from "./js/timeline.js";
+    renderTimeline(document.getElementById("timeline-root"));
+  </script>
+</body>
+</html>

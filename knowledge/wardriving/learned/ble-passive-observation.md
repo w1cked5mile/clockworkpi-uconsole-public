@@ -109,7 +109,7 @@ its paired devices — and is never used for observation.
 | Controller | Hardware | Role |
 |---|---|---|
 | `hci0` | CM4 onboard Cypress, Bluetooth 5.0, `Bus: UART`. *Verified on this build 2026-09-25.* | Fancy's own paired devices (three bonded). Never used for recon. |
-| `hci1`, or whatever it comes up as | AC1200, vendor-claimed MediaTek MT7921AUN, Bluetooth 5.2, `Bus: USB`, on the AIO V2's USB rail. *Unverified — the card has shipped but not arrived.* | Recon: all passive BLE observation |
+| `hci1`, or whatever it comes up as | AC1200, vendor-claimed MediaTek MT7921AUN, Bluetooth 5.2, `Bus: USB`, on the AIO V2's USB rail. *Verified on this build 2026-09-30* (`hci1`, see [`ac1200-mt7921.md`](../../../hardware/specs/ac1200-mt7921.md)). | Recon: all passive BLE observation |
 
 Software: `bluez` 5.82 with `hcitool`, `btmon`, `btmgmt` and `bluetoothctl` installed. *Verified
 on this build 2026-09-25.*

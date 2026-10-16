@@ -21,13 +21,13 @@ Put together, a full field session composes roughly like this: the ~5.0 W floor,
 +0.64 W SDR rail and +0.29 W GPS rail, plus an estimated ~0.5–1 W for readsb actually decoding, plus
 ~1–1.8 W for the AC1200 in monitor mode for the survey. That lands near **7.4–8.7 W** — the exact figure
 is what you compose and then test. The runtime scenarios table does this composition for several real
-cases against the ~31 Wh usable estimate of the Meshnology pack:
+cases against the 52 Wh the fitted Meshnology pair actually delivered on its first discharge:
 
-@ref docs/reference/power-budget.md#runtime-scenarios-meshnology-37-wh-pack
+@ref docs/reference/power-budget.md#runtime-scenarios-fitted-meshnology-pair
 
-Two honesty notes carry straight into your budget. First, usable energy (~31 Wh ≈ 85 % of 37 Wh) is
-itself an estimate until the pack is discharge-tested — so your runtime prediction inherits that
-uncertainty. Second, the readings that matter are taken at the cell, so they divide straight into pack
+Two honesty notes carry straight into your budget. First, usable energy is what the device delivers
+before it shuts off, not what the pack holds: the ≈74 Wh pair gave 52 Wh and then the power cut out at
+≈3.5 V with charge probably still left, so your runtime prediction inherits wherever that cut-off sits. Second, the readings that matter are taken at the cell, so they divide straight into pack
 Wh with no converter-loss factor. Reading those numbers off the device is the next lesson's and the
 lab's job:
 

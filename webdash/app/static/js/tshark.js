@@ -1,4 +1,4 @@
-// Passive packet-capture tile (System view). A receive-only troubleshooting tap for the
+// Passive packet-capture tile (Wi-Fi survey view). A receive-only troubleshooting tap for the
 // hang/dropout hunt: start a bounded dumpcap ring buffer on a chosen interface and watch the
 // address-free summary the host bridge produces. Everything here is driven from the 3 s status
 // tick (syncTshark) — the start/stop buttons post and let the next tick settle the state, the same

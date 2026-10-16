@@ -31,7 +31,10 @@ AIRTIME:
     Mirrors the node's own smart-broadcast intent rather than spamming the mesh: a new position
     goes out only when the fix has moved >= MIN_DIST_M or MIN_INTERVAL_S has passed, and never
     more often than MIN_INTERVAL_S. Defaults match the node's position.broadcast_smart_* values
-    (100 m / 300 s). A keepalive goes out at most every MAX_INTERVAL_S.
+    (100 m / 300 s). No periodic keepalive by default: the node persists the fixed position and
+    rebroadcasts it itself, and every setFixedPosition() makes meshtasticd save its config and
+    re-init the radio — so re-sending an unchanged fix only costs RX time. Set MAX_INTERVAL_S > 0
+    to force one anyway.
 
 PRIVACY:
     Logs grid square + metres moved, never raw lat/lon — the repo records location as a Maidenhead
@@ -54,7 +57,7 @@ GPSD_PORT = int(os.environ.get("GPSD_PORT", "2947"))
 MESH_HOST = os.environ.get("MESH_HOST", "127.0.0.1")
 
 MIN_INTERVAL_S = float(os.environ.get("MIN_INTERVAL_S", "300"))   # airtime floor between sends
-MAX_INTERVAL_S = float(os.environ.get("MAX_INTERVAL_S", "900"))   # keepalive ceiling
+MAX_INTERVAL_S = float(os.environ.get("MAX_INTERVAL_S", "0"))     # keepalive ceiling; 0 = off
 MIN_DIST_M = float(os.environ.get("MIN_DIST_M", "100"))           # resend if moved this far
 FIX_MAX_AGE_S = float(os.environ.get("FIX_MAX_AGE_S", "30"))      # ignore stale TPV
 POLL_S = 5.0                                                      # gpsd read cadence
@@ -198,7 +201,7 @@ def run_loop(mesh):
             else:
                 moved = haversine_m(last[0], last[1], lat, lon)
                 since = now - last[2]
-                if since >= MAX_INTERVAL_S:
+                if MAX_INTERVAL_S > 0 and since >= MAX_INTERVAL_S:
                     send = True                       # keepalive
                 elif since >= MIN_INTERVAL_S and moved >= MIN_DIST_M:
                     send = True                       # moved enough, and past the airtime floor

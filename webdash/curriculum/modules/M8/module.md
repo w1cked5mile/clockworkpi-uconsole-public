@@ -3,7 +3,7 @@ id: M8
 title: Identifying signals
 themed_title: Passage 8 · Naming the lights
 discipline: rf-fundamentals
-station: sdr
+station: sdr/hunt
 prerequisites:
   - {id: M5, soft: false}
 sources:
