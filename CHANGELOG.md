@@ -12,6 +12,13 @@ All notable changes to this build and its docs. Format loosely follows Keep a Ch
 - **Sparklines, 2026-10-15.** 2 h history traces on the Overview's System and Power tiles, and on
   the System and Power views. Hover or tap reads a sample. The voltage dot warns at 3.60 V on
   battery. See [`webdash-design.md`](docs/reference/webdash-design.md#sparklines).
+- **Phone widget, 2026-10-14.** New read-only `GET /api/widget` (compact summary with no lat/lon,
+  grid cut to 4 characters) gated by a separate bearer token stored as a SHA-256 hash, plus an iOS
+  Scriptable widget ([`webdash/widget/fancy-widget.js`](webdash/widget/fancy-widget.js)) for home
+  and lock screens: pack voltage with the 3.60 V plug-in level, 2 h voltage sparkline, GNSS, CPU
+  temp, Kismet/mesh/ADS-B, rails. Setup in [`software/webdash.md`](software/webdash.md#phone-widget);
+  the auth exception is recorded in [`decisions.md`](docs/logs/decisions.md). *Unverified on the
+  device and on a phone.*
 
 ### Power
 - **OpenWebRX won't start with the USB rail on, 2026-10-15.** After a hard power loss with the

@@ -10,11 +10,11 @@
             "rf_gain": "auto",
             "profiles": {
                 "fm_bcast": {
-                    "name": "FM broadcast (88-108)",
-                    "center_freq": 98000000,
+                    "name": "FM broadcast (93.9 start)",
+                    "center_freq": 94000000,
                     "rf_gain": "auto",
                     "samp_rate": 2048000,
-                    "start_freq": 98100000,
+                    "start_freq": 93900000,
                     "start_mod": "wfm"
                 },
                 "airband": {

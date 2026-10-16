@@ -5,14 +5,14 @@ import time
 from collections import deque
 from typing import Literal
 
-from fastapi import Cookie, Depends, FastAPI, Form, Request, Response
+from fastapi import Cookie, Depends, FastAPI, Form, Header, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
-from . import auth, proxy
+from . import auth, proxy, widget
 from .collectors import adsb, aiov2, gps, kismet, mesh, net, services, system, tshark
 from .sdr import hunt as sdr_hunt
 from .sdr import listen as sdr_listen
@@ -239,6 +239,16 @@ async def index(request: Request, uconsole_webdash_session: str | None = Cookie(
 @app.get("/api/health")
 async def health():
     return {"ok": True, "uptime_s": int(time.time() - START_TIME)}
+
+
+@app.get("/api/widget")
+async def api_widget(authorization: str | None = Header(default=None)):
+    """Compact status for the phone widget. Bearer token, not the session cookie (a widget can't
+    do TOTP); the token opens this read-only route and nothing else. See app/widget.py."""
+    if not widget.token_ok(widget.bearer(authorization)):
+        raise HTTPException(status_code=401, detail="not authenticated")
+    return JSONResponse(widget.summary(await current_status(), list(_history)),
+                        headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/status", dependencies=[Depends(auth.require_session)])

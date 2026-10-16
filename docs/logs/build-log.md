@@ -2,6 +2,43 @@
 
 Dated journal of what was done. Newest entries at the top. Link photos in [`../../images/`](../../images/).
 
+## 2026-10-16 — Spotter: naming, and the backend's Kismet endpoints checked live
+
+- **What:** The owner named the Detect tab **Spotter** and gave its eleven sighting names
+  ([`webdash-detect.md`](../reference/webdash-detect.md#sighting-names)). The tab UI is still
+  paused ([`decisions.md`](decisions.md)). Then a live check of the two Kismet endpoints the
+  backend polls.
+- **Result:** The USB rail read ON, but the AC1200 had dropped off USB at 09:09:39Z after `-110`
+  control timeouts (new [known-issues](known-issues.md) entry). A rail power cycle recovered it
+  (`wlan1`, `hci1`). With Kismet started, `devices/last-time` and `alerts/last-time` both returned
+  200, and their shapes match the backend. Only shapes and counts were printed (21 devices, 0
+  alerts), and the captures were deleted. Kismet was stopped afterwards. The USB rail was left on,
+  as found. No RF transmitted.
+- **Photos:** none (software).
+- **Container run (same day):** rebuilt the webdash image from `feat/webdash-hunt`, which is now
+  deployed. Detect tests (22) and survey tests (28) pass in the container. The live status
+  snapshot carries `data.detect`. A separate-process engine poll against live Kismet (throwaway
+  data dir, catch-all SSID rule) ran two clean polls of about 110–150 ms and logged 5 contacts;
+  the dashboard's real log was untouched. Kismet was stopped afterwards.
+- **Next:** read the alert field names from a real alert.
+
+## 2026-10-16 — webdash Detect: design team run, backend built, paused on a classifier block
+
+- **What:** The owner asked for a Wi-Fi tab that watches for offensive/pentest devices and keeps a
+  contact log, plus a learning section on the devices. Stages 0–3 of the design pipeline ran
+  (`webdash-qa`, `creative-director`, `design-planner`, plus the `senior-rf-engineer` legality
+  view). The receive-only backend was then built on `feat/webdash-hunt`. Software only: no RF
+  emitted and no device state changed. The USB rail was off, Kismet stopped and `hci1` absent
+  throughout.
+- **Result:** Backend committed `4c7f3e5`; 22 unit tests pass on the host. It has not run in the
+  container or against live Kismet. A platform safety classifier stopped the signature research,
+  the learning-section research and the front-end write, so those parts are paused. Feedback was
+  sent; see [`../reference/webdash-detect.md`](../reference/webdash-detect.md) and the private
+  `../records/ai-assistant-feedback.md`. A pre-existing
+  `test_learn.py` failure (the "capture" station has no route in `main.js`) was seen and left alone.
+- **Photos:** none (software).
+- **Next:** run the backend against live Kismet. The UI waits on a feedback reply ([`../../TODO.md`](../../TODO.md)).
+
 ## 2026-10-15 — webdash sparklines
 
 - **What:** 2 h sparklines from `GET /api/history`. CPU temperature and battery voltage are on the
@@ -145,6 +182,19 @@ Dated journal of what was done. Newest entries at the top. Link photos in [`../.
   traversal and the single-panel height fit were reviewed from markup/CSS, not screenshotted. A
   fixture-status harness that can mount an arbitrary `data-view` (design-team backlog item 2) would
   close this; it is the command that settles the Q1/Q4 checks here.
+## 2026-10-14 — OpenWebRX: retune the FM broadcast profile to open on 93.9 MHz
+
+- **What:** the seed FM profile opened centered at 98.0 MHz, which landed between stations here
+  (owner saw a live waterfall but only static). Retuned it to start on **93.9 MHz** — a station the
+  owner can actually hear — in [`../../configs/openwebrx/settings.json`](../../configs/openwebrx/settings.json).
+- **How:** 93.9 MHz sits outside the old 98 MHz tuner window (96.98–99.02 MHz at 2.048 MS/s), so the
+  center moved too: `center_freq` 94.0 MHz, `start_freq` 93.9 MHz (100 kHz below center, off the DC
+  spike, inside the 92.98–95.02 MHz window). Label now "FM broadcast (93.9 start)".
+- **Applied + verified on hardware:** copied the seed into the container volume
+  (`docker cp … openwebrx:/var/lib/openwebrx/settings.json`) and restarted; the fresh run logged
+  **no "out of range" warnings** for any of the five profiles and served HTTP 200 on 8073. Restored
+  the clean baseline afterwards — container stopped, bridge `busy=None`, RTL re-enumerated free.
+  **Still owner-confirmed by eye:** opening the receiver on the FM profile and hearing 93.9.
 
 ## 2026-10-14 — OpenWebRX: a web-native receiver as the fourth SDR tab
 
@@ -3011,43 +3061,6 @@ Dated journal of what was done. Newest entries at the top. Link photos in [`../.
 - **Next:** Owner decision on applying the bridge services (unmanage persists, GPS socat PTY,
   `wdg-wifi-bridge` on `hci1`) — held because they touch the live `wlan1` Kismet adapter. See
   [`../../TODO.md`](../../TODO.md).
-
-## 2026-10-16 — webdash Detect: design team run, backend built, paused on a classifier block
-
-- **What:** The owner asked for a Wi-Fi tab that watches for offensive/pentest devices and keeps a
-  contact log, plus a learning section on the devices. Stages 0–3 of the design pipeline ran
-  (`webdash-qa`, `creative-director`, `design-planner`, plus the `senior-rf-engineer` legality
-  view). The receive-only backend was then built on `feat/webdash-hunt`. Software only: no RF
-  emitted and no device state changed. The USB rail was off, Kismet stopped and `hci1` absent
-  throughout.
-- **Result:** Backend committed `4c7f3e5`; 22 unit tests pass on the host. It has not run in the
-  container or against live Kismet. A platform safety classifier stopped the signature research,
-  the learning-section research and the front-end write, so those parts are paused. Feedback was
-  sent; see [`../reference/webdash-detect.md`](../reference/webdash-detect.md) and the private
-  `../records/ai-assistant-feedback.md`. A pre-existing
-  `test_learn.py` failure (the "capture" station has no route in `main.js`) was seen and left alone.
-- **Photos:** none (software).
-- **Next:** run the backend against live Kismet. The UI waits on a feedback reply ([`../../TODO.md`](../../TODO.md)).
-
-## 2026-10-16 — Spotter: naming, and the backend's Kismet endpoints checked live
-
-- **What:** The owner named the Detect tab **Spotter** and gave its eleven sighting names
-  ([`webdash-detect.md`](../reference/webdash-detect.md#sighting-names)). The tab UI is still
-  paused ([`decisions.md`](decisions.md)). Then a live check of the two Kismet endpoints the
-  backend polls.
-- **Result:** The USB rail read ON, but the AC1200 had dropped off USB at 09:09:39Z after `-110`
-  control timeouts (new [known-issues](known-issues.md) entry). A rail power cycle recovered it
-  (`wlan1`, `hci1`). With Kismet started, `devices/last-time` and `alerts/last-time` both returned
-  200, and their shapes match the backend. Only shapes and counts were printed (21 devices, 0
-  alerts), and the captures were deleted. Kismet was stopped afterwards. The USB rail was left on,
-  as found. No RF transmitted.
-- **Photos:** none (software).
-- **Container run (same day):** rebuilt the webdash image from `feat/webdash-hunt`, which is now
-  deployed. Detect tests (22) and survey tests (28) pass in the container. The live status
-  snapshot carries `data.detect`. A separate-process engine poll against live Kismet (throwaway
-  data dir, catch-all SSID rule) ran two clean polls of about 110–150 ms and logged 5 contacts;
-  the dashboard's real log was untouched. Kismet was stopped afterwards.
-- **Next:** read the alert field names from a real alert.
 
 ## YYYY-MM-DD — <title>
 

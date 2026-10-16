@@ -412,6 +412,12 @@ committed document), but:
 - The `/api/mesh/gps` style "exempt from login for internal consumers" pattern CyberDeck uses is
   **not** carried over — every route requires the session, no exceptions, since Kismet on this box
   can be mid-survey and the dashboard would be showing more than just this node's position.
+- **One exception, added 2026-10-14:** `GET /api/widget` (the phone widget,
+  [`../../software/webdash.md#phone-widget`](../../software/webdash.md#phone-widget)) takes a
+  separate bearer token, because a widget can't do TOTP. It is read-only, opens that route only,
+  is stored as a SHA-256 hash in the auth volume, and returns a summary with **no lat/lon** (grid
+  cut to 4 characters) and no Kismet device detail beyond a count. `/api/health` is also
+  unauthenticated, as before, and returns only uptime.
 
 ## Image budget
 

@@ -384,6 +384,70 @@ goes in `~/.local/share/uconsole-webdash/data/` (mounted at `/data`). Neither di
 repo, and nothing learning-related is served from `/static` (which needs no login). The pages
 live at `#/learn` (Learn in the status strip); the API is `/api/learn/*`, behind the login.
 
+## Phone widget
+
+Added 2026-10-14. An iOS home/lock screen widget for the
+[Scriptable](https://scriptable.app) app, script at
+[`../webdash/widget/fancy-widget.js`](../webdash/widget/fancy-widget.js). It reads
+`GET /api/widget`, a compact read-only summary, over Tailscale. *Unverified on the device and on
+a phone*: the route was tested with FastAPI's `TestClient` and the script against a stubbed
+Scriptable API only.
+
+| Size | Shows |
+|---|---|
+| Small | Pack voltage and level, power draw, GNSS fix/sats, grid, CPU temp, data age |
+| Medium | Small, plus a 2 h voltage sparkline with the 3.60 V line, Kismet/mesh/ADS-B, rail chips |
+| Large | Medium, plus disk, uptime and the 5 V undervoltage flag |
+| Lock: rectangular / inline / circular | Voltage, fix, grid, temp as text (iOS tints lock widgets, so state is in words) |
+
+Voltage level (on battery only; thresholds from
+[`../docs/reference/power-budget.md`](../docs/reference/power-budget.md)):
+
+| `power.level` | Condition | Colour |
+|---|---|---|
+| `ok` | ≥ 3.70 V | green |
+| `low` | 3.60–3.69 V | yellow |
+| `plug_in` | < 3.60 V | red, text `PLUG IN` |
+| `charging` | on AC | blue |
+
+**Auth.** A widget can't do password + TOTP, so this one route takes a bearer token instead of the
+session cookie. The token is read-only, opens `/api/widget` and nothing else (`/api/status` still
+returns 401 with it), and only its SHA-256 is stored, at
+`~/.config/uconsole-webdash/widget_token.sha256`. The summary carries **no lat/lon**; the grid is
+cut to 4 characters. No token file means the route rejects every request.
+
+1. Rotate a token on the device (prints it once; the previous token stops working):
+
+   ```bash
+   sg docker -c 'docker exec uconsole-webdash python -m app.widget --rotate'
+   ```
+
+2. Check it from the device:
+
+   ```bash
+   curl -s -H "Authorization: Bearer <token>" http://127.0.0.1:8090/api/widget | python3 -m json.tool
+   curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8090/api/widget   # expect 401
+   ```
+
+3. On the iPhone: install Tailscale and sign in to the tailnet (the widget can't reach
+   `fancy.example-tailnet.ts.net` otherwise), install Scriptable, and create a script named
+   `Fancy` containing `fancy-widget.js` (paste it, or drop the file in `iCloud Drive/Scriptable/`).
+4. Run the script once in Scriptable, choose **Settings**, and enter the URL
+   (`https://fancy.example-tailnet.ts.net/api/widget`) and the token. Both go to the iOS
+   Keychain, not into the script.
+5. Long-press the home or lock screen → add a Scriptable widget → edit it → Script: `Fancy`.
+
+iOS sets the refresh cadence (the script requests 15 min; expect 15–60 min). When the fetch fails
+(phone off the tailnet, device off) the widget shows the last good copy, with `unreachable` and its
+age in yellow. A `token rejected` header means the token was rotated: enter the new one in
+Settings. To revoke without issuing a new token, delete the hash file:
+
+```bash
+rm ~/.config/uconsole-webdash/widget_token.sha256
+```
+
+Tests: `cd webdash && PYTHONPATH=. python3 tests/test_widget.py`.
+
 ## Verify
 
 ```bash
