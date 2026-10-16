@@ -228,15 +228,19 @@
       from S1 (close the tailnet `:2501`/`:9443` exposure — see known issues).
 
 ## webdash Detect (2026-10-16)
-- [ ] **Finish the Detect tab, but only once a reply to the safety-classifier feedback indicates
+- [ ] **Finish the Spotter (Detect) tab, but only once a reply to the safety-classifier feedback indicates
       it's in bounds.** The receive-only backend is built (`4c7f3e5` on `feat/webdash-hunt`). Still
       to do: the tab UI, the passive BLE listener on `hci1`, the device learning section, the
       signature catalogue and starter rules, and the doc updates. Feedback state and receipts are
       in the private `docs/records/ai-assistant-feedback.md`.
       See [`docs/reference/webdash-detect.md`](docs/reference/webdash-detect.md).
-- [ ] **Run the Detect backend against live Kismet:** rebuild the container, then settle the
-      `last-time` endpoints and alert fields with the curl lines in
-      [`webdash-detect.md`](docs/reference/webdash-detect.md). This doesn't depend on the reply.
+- [ ] **Finish checking the Spotter backend against live Kismet.** Both `last-time` endpoints
+      were checked 2026-10-16: 200, and the shapes match the backend. Ran in the rebuilt
+      container the same day (tests pass; live poll clean). Still to do: read the
+      `kismet.alert.*` field names from a real alert.
+      See [`webdash-detect.md`](docs/reference/webdash-detect.md). This doesn't depend on the reply.
+- [ ] **AC1200 dropped off USB with the rail still on (2026-10-16).** A rail cycle recovered it.
+      Catch the next drop with the kernel log running. See [known-issues](docs/logs/known-issues.md).
 
 ## WatchDogsGo (2026-10-06)
 - [x] Install WatchDogsGo + `setup.sh` on Fancy — done, venv/deps/`dump1090` verified. See

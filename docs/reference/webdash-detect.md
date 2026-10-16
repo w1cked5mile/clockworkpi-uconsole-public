@@ -1,9 +1,31 @@
-# webdash Detect: passive offensive-device detection
+# webdash Spotter: passive offensive-device detection
 
 Status: **paused, 2026-10-16. The backend is built; the tab, the BLE listener and the learning
 section are not.** Work stopped on a platform-level blocker (below). It resumes only once a reply
 to the feedback sent about that blocker indicates the remaining work is in bounds — tracked in
 [`../../TODO.md`](../../TODO.md).
+
+**Name (owner, 2026-10-16):** the tab is **Spotter** (plain label), replacing the design team's
+"Detect" / "Kraken watch". Code paths (`app/detect/`, `/api/detect/*`) keep the `detect` name.
+
+## Sighting names
+
+Agreed by the owner on 2026-10-16. Each name is a themed subtitle shown after the plain class name,
+never in place of it (Q8). The keys are `CLASSES` in `webdash/app/detect/rules.py`.
+
+| Class key | Sighting name |
+|---|---|
+| `flipper` | Dolphin |
+| `pwnagotchi` | Remora |
+| `marauder` | Kraken |
+| `bruce` | Shark |
+| `pineapple` | Siren |
+| `deauther` | Cutter |
+| `implant` | Submarine |
+| `deauth_flood` | Squall |
+| `beacon_flood` | Ghost fleet |
+| `ble_spam` | Flotsam |
+| `other` | Unknown contact |
 
 ## The concept
 
@@ -68,15 +90,27 @@ checked. To prove the log works end to end, match your own hotspot:
 
 Valid `class` values are listed in `CLASSES` in `rules.py`.
 
-**Unverified on this build:** the Kismet `/devices/last-time/<ts>/devices.json` and
-`/alerts/last-time/<ts>/alerts.json` endpoints and the `kismet.alert.*` field names. They come
-from Kismet's REST documentation, not from a run against Kismet 2025.09 on Fancy. The backend has
-also not yet run in the container. Settle with the USB rail on and Kismet running:
+**Checked against live Kismet 2025.09, 2026-10-16** (USB rail on, AC1200 on `wlan1`):
+
+| Endpoint | Result | Backend fit |
+|---|---|---|
+| `POST /devices/last-time/<ts>/devices.json` with field simplification | **200**; a list of records keyed by the requested aliases, 21 devices in a 60 s window; `last_time` an integer, SSID a string or integer `0` when absent | Matches `engine._fetch` and `snapshot._reduce` (0 already reads as "no SSID") |
+| `GET /alerts/last-time/<ts>/alerts.json` | **200**; a bare list (not a `kismet.alert.list` wrapper), empty in the window | `engine._fetch` accepts both shapes |
+
+**Ran in the rebuilt container, 2026-10-16.** `test_detect` (22) and `test_survey` (28) pass in the
+container. The real status snapshot carries `data.detect` (watch off, `kismet_stopped`,
+`not_built`, 0 rules). A live poll ran in a separate process with a throwaway data dir, so the
+dashboard's own log stayed untouched, using a temporary catch-all SSID rule. Two polls ran with no
+errors in about 110–150 ms each; 5 contacts were logged with their sightings counted, and the
+summary carried no addresses. GPS had no fix indoors, so those records had no grid.
+
+Still *unverified*: the `kismet.alert.*` field names, which need a real alert to read, and a
+watch switched on from a logged-in session through `POST /api/detect/watch`. Re-check the alert
+fields when Kismet next raises one, without printing addresses:
 
 ```bash
-curl -s -u "$KUSER:$KPASS" "http://127.0.0.1:2501/alerts/last-time/0/alerts.json" | head -c 400
-curl -s -u "$KUSER:$KPASS" -X POST "http://127.0.0.1:2501/devices/last-time/0/devices.json" \
-  -d 'json={"fields":[["kismet.device.base.macaddr","mac"]]}' | head -c 400
+curl -s -u "$KUSER:$KPASS" "http://127.0.0.1:2501/alerts/last-time/0/alerts.json" \
+  | python3 -c 'import json,sys; a=json.load(sys.stdin); print(len(a), sorted(a[0]) if a else "no alerts")'
 ```
 
 ## Not built

@@ -142,6 +142,11 @@ loss but does not strengthen the link. Real fixes: **re-seat the onboard Wi-Fi u
 (possibly disturbed during the 2026-09-30 AC1200 install), move Fancy closer to the AP, or use
 Ethernet (`eth0`, 1 Gbps, currently unplugged).
 
+**Update 2026-10-16 15:27Z:** `wlan0` reads **−38 dBm at 72.2 Mbit/s** on 2.4 GHz channel 1
+(2412 MHz), with power save off. The 2026-09-30 figures were taken at an unrecorded spot, so this
+doesn't prove the link was fixed. It may just be a closer position. The root cause (antenna seat or
+placement) is still unconfirmed. Settle by reading `iw dev wlan0 link` at the 2026-09-30 spot.
+
 ### Flashing a microSD on Windows: `Set-Disk -IsOffline` fails with "Not Supported"
 
 - **Observed:** `Set-Disk -Number N -IsOffline $true` against the card reader returns
@@ -271,6 +276,28 @@ Ethernet (`eth0`, 1 Gbps, currently unplugged).
   - [ ] Read the AXP's power-off reason after the next cut.
   - [ ] Log the USB rail state in `throttle-mon`.
   - [ ] Decide whether turning the USB rail on should be refused while OpenWebRX runs.
+
+### AC1200 dropped off USB with control-request timeouts; the USB rail stayed on
+
+- **Observed:** 2026-10-16. The AC1200 enumerated at 08:58:36Z (`0e8d:7961`, `1-1.4.4`). From
+  09:08:26Z `mt7921u` logged `vendor request req:01/02 … failed:-110` (USB control timeouts) every
+  ~3 s, and at **09:09:39Z** the device disconnected. It did not come back. At 11:15Z the USB rail
+  still read **ON** (`aiov2_ctl`, bridge `rails.USB.on: true`) but there was no `wlan1`, no `hci1`
+  and no MediaTek device in `lsusb`. Other USB disconnects followed on `1-1.1` (09:12:10Z, 09:12:12Z)
+  and `1-1.2` (09:23:15Z); which devices those are is *unverified*.
+- **Recovered:** a USB rail power cycle (`aiov2_ctl USB off`, 5 s, `aiov2_ctl USB on`) brought it
+  back at 11:16Z with `wlan1` and `hci1` and firmware loaded. During that bring-up `hci1` logged
+  `Opcode 0x0c03 failed: -110` (an HCI Reset timeout) and `urb … failed to resubmit`, but it came up.
+- **Cause:** *unverified.* Candidates: the card browning out on the rail (power was `AC` and
+  charging, so not a low pack), a firmware hang in `mt7921u`, or the hub/cable on the AIO V2's
+  internal USB-C port. Related: the 2026-10-15 OpenWebRX hard power loss above also involves the USB
+  rail. Settle by watching `journalctl -k -f | grep -E 'mt7921|1-1\.4'` over a long run and noting
+  what was running at the first `-110`.
+- **Impact:** Kismet, the site survey, packet capture on `wlan1`, the WPA audit and the Spotter
+  backend all go silent with no error from the rail. A "rail on, `wlan1` absent" check would catch it.
+- **Status:** open.
+  - [ ] Catch the next drop with the kernel log running, and note the load and the power source.
+  - [ ] Identify the `1-1.1` / `1-1.2` devices that disconnected after it.
 
 ### Fuel gauge % is wrong: 100 % to cut-off on the 18650s, 99 % for 11 h on the Meshnology pair
 

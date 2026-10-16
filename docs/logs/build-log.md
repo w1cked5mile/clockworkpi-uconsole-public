@@ -3029,6 +3029,26 @@ Dated journal of what was done. Newest entries at the top. Link photos in [`../.
 - **Photos:** none (software).
 - **Next:** run the backend against live Kismet. The UI waits on a feedback reply ([`../../TODO.md`](../../TODO.md)).
 
+## 2026-10-16 — Spotter: naming, and the backend's Kismet endpoints checked live
+
+- **What:** The owner named the Detect tab **Spotter** and gave its eleven sighting names
+  ([`webdash-detect.md`](../reference/webdash-detect.md#sighting-names)). The tab UI is still
+  paused ([`decisions.md`](decisions.md)). Then a live check of the two Kismet endpoints the
+  backend polls.
+- **Result:** The USB rail read ON, but the AC1200 had dropped off USB at 09:09:39Z after `-110`
+  control timeouts (new [known-issues](known-issues.md) entry). A rail power cycle recovered it
+  (`wlan1`, `hci1`). With Kismet started, `devices/last-time` and `alerts/last-time` both returned
+  200, and their shapes match the backend. Only shapes and counts were printed (21 devices, 0
+  alerts), and the captures were deleted. Kismet was stopped afterwards. The USB rail was left on,
+  as found. No RF transmitted.
+- **Photos:** none (software).
+- **Container run (same day):** rebuilt the webdash image from `feat/webdash-hunt`, which is now
+  deployed. Detect tests (22) and survey tests (28) pass in the container. The live status
+  snapshot carries `data.detect`. A separate-process engine poll against live Kismet (throwaway
+  data dir, catch-all SSID rule) ran two clean polls of about 110–150 ms and logged 5 contacts;
+  the dashboard's real log was untouched. Kismet was stopped afterwards.
+- **Next:** read the alert field names from a real alert.
+
 ## YYYY-MM-DD — <title>
 
 - What:

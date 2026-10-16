@@ -98,7 +98,7 @@ Compiled from the sources above; start here before going back upstream.
 | [`reference/webdash-design.md`](reference/webdash-design.md) | webdash UI design of record: IA, layout, visual system, build plan, skins |
 | [`reference/learning-platform-plan.md`](reference/learning-platform-plan.md) | The learning layer ("the Chart Table"): tracks, modules, labs, lab engine |
 | [`reference/webdash-design-team.md`](reference/webdash-design-team.md) | How the design agents work together: quality bar, roster, pipeline, backlog |
-| [`reference/webdash-detect.md`](reference/webdash-detect.md) | Detect: passive offensive-device detection (concept, what's built, blockers; paused) |
+| [`reference/webdash-detect.md`](reference/webdash-detect.md) | Spotter (Detect): passive offensive-device detection (concept, sighting names, what's built, blockers; paused) |
 | `records/ai-assistant-feedback.md` | Private: feedback sent to Anthropic about the Detect blocker, with receipts |
 | [`accessories.md`](accessories.md) | Required/optional accessory status and buy list |
 | [`../knowledge/`](../knowledge/README.md) | RF knowledge base by discipline — durable `learned/` prose and dated `findings/` |
