@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Fancy Papers</title>
+<meta name="description" content="Fancy, a ClockworkPi uConsole built as a handheld RF lab and documented as a ship's papers.">
+<style>body{margin:0}img{max-width:100%}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=IM+Fell+Double+Pica&family=IM+Fell+Double+Pica+SC&family=Spectral:ital,wght@0,400;0,500;1,400&display=swap">
+<style>
+/* Layout concept: a ship's papers filed for a pocket radio. Engraved plates and ledgers on night
+   water, one working waterfall, and one sheet of actual copper for the letter of marque.
+   Deliberately a single dark look, matching the device's own dashboard. */
+:root {
+  color-scheme: dark;
+  --ink: #0a1218;
+  --ink-2: #101c25;
+  --rule: #2c3f4a;
+  --paper: #ecdfc6;
+  --dim: #a3aeaa;
+  --copper: #dc9a6c;
+  --brass: #c9a45c;
+  --live: #4ade80;
+  --tx: #fb923c;
+  --sheet: #c98a5e;
+  --sheet-hi: #e0a981;
+  --sheet-ink: #21120a;
+  --display: "IM Fell Double Pica", "Iowan Old Style", Georgia, serif;
+  --caps: "IM Fell Double Pica SC", "Iowan Old Style", Georgia, serif;
+  --body: "Spectral", Georgia, "Times New Roman", serif;
+  --mono: "Courier Prime", "Courier New", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+body { background: var(--ink); color: var(--paper); font: 400 1.075rem/1.62 var(--body); }
+a { color: var(--copper); text-underline-offset: 3px; }
+a:hover { color: var(--paper); }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+img { display: block; height: auto; }
+code { font: 0.92em var(--mono); color: var(--copper); }
+
+.wrap {
+  max-width: 1120px; margin: 0 auto; padding-block: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.band { padding-block: clamp(44px, 7vw, 76px); border-top: 1px solid var(--rule); }
+.label { font: 700 0.76rem/1.3 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--brass); margin: 0; }
+h2 { font: 400 clamp(1.9rem, 4.6vw, 2.9rem)/1.1 var(--display); margin: 8px 0 14px; text-wrap: balance; }
+.lede { max-width: 62ch; margin: 0; color: var(--paper); }
+.small { font-size: 0.93rem; color: var(--dim); }
+figure { margin: 0; }
+figcaption { font: 0.8rem/1.45 var(--mono); color: var(--dim); margin-top: 8px; }
+
+/* Hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr); gap: clamp(24px, 5vw, 64px); align-items: center; padding-block: clamp(32px, 6vw, 64px); }
+.hero > * { min-width: 0; }
+h1 { font: 400 clamp(4.6rem, 16vw, 10.5rem)/0.86 var(--caps); margin: 12px 0 18px; color: var(--paper); letter-spacing: -0.01em; }
+.tag { font: 400 clamp(1.3rem, 3vw, 1.85rem)/1.2 var(--display); color: var(--copper); margin: 0 0 18px; text-wrap: balance; }
+.hero p.intro { max-width: 56ch; margin: 0 0 22px; }
+.links { display: flex; flex-wrap: wrap; gap: 10px; }
+.btn { font: 700 0.85rem/1 var(--mono); padding: 11px 14px; border: 1px solid var(--copper); color: var(--copper); text-decoration: none; }
+.btn:hover { background: var(--copper); color: var(--ink); }
+.btn.quiet { border-color: var(--rule); color: var(--paper); }
+.btn.quiet:hover { background: var(--paper); border-color: var(--paper); color: var(--ink); }
+
+.plate { position: relative; max-width: 400px; margin-inline: auto; width: 100%; }
+.ports { position: relative; height: 30px; font: 700 0.72rem/1 var(--mono); color: var(--brass); }
+.ports span { position: absolute; bottom: 0; transform: translateX(-50%); padding-bottom: 11px; }
+.ports span::after { content: ""; position: absolute; left: 50%; bottom: 0; height: 8px; border-left: 1px solid var(--brass); }
+.plate img { width: 100%; border: 1px solid var(--rule); }
+
+/* Particulars */
+.part { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: clamp(24px, 4vw, 48px); margin-top: 26px; align-items: start; }
+.part > * { min-width: 0; }
+dl.ledger { margin: 0; font: 0.95rem/1.4 var(--mono); }
+dl.ledger div { display: flex; align-items: baseline; gap: 8px; padding-block: 5px; }
+dl.ledger dt { color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.82rem; flex: none; }
+dl.ledger i { flex: 1 1 14px; min-width: 14px; border-bottom: 1px dotted var(--rule); transform: translateY(-4px); }
+dl.ledger dd { margin: 0; text-align: right; min-width: 0; flex: 0 1 auto; }
+.figs { display: grid; gap: 20px; }
+.figs img { width: 100%; border: 1px solid var(--rule); }
+
+/* Waterfall */
+.scope { margin-top: 26px; border: 1px solid var(--rule); background: var(--ink-2); padding: 12px; }
+.axis { position: relative; height: 22px; font: 0.72rem/1 var(--mono); color: var(--dim); }
+.axis span { position: absolute; bottom: 5px; transform: translateX(-50%); white-space: nowrap; }
+.axis span::after { content: ""; position: absolute; left: 50%; top: 100%; height: 5px; border-left: 1px solid var(--dim); }
+.screen { position: relative; }
+canvas { display: block; width: 100%; height: clamp(190px, 30vw, 300px); background: #05090c; cursor: crosshair; }
+.brk { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--paper); border-right: 1px solid var(--paper); pointer-events: none; min-width: 3px; }
+.reach { position: relative; height: 22px; margin-top: 6px; font: 0.72rem/22px var(--mono); color: var(--ink); }
+.reach b { position: absolute; left: 0; top: 0; bottom: 0; background: var(--brass); font-weight: 700; padding-left: 6px; white-space: nowrap; overflow: hidden; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.chip { font: 700 0.8rem/1 var(--mono); padding: 9px 11px; background: transparent; color: var(--paper); border: 1px solid var(--rule); cursor: pointer; }
+.chip:hover { border-color: var(--copper); }
+.chip[aria-pressed="true"] { background: var(--copper); border-color: var(--copper); color: var(--ink); }
+.read { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 28px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--rule); }
+.read > * { min-width: 0; }
+.read h3 { font: 400 1.6rem/1.15 var(--display); margin: 0 0 4px; }
+.read .freq { font: 0.9rem/1.4 var(--mono); color: var(--dim); margin: 0 0 8px; }
+.read p { margin: 0; font-size: 1rem; }
+.stat { display: inline-block; font: 700 0.74rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; padding: 5px 7px; border: 1px solid currentColor; }
+.stat.ok { color: var(--live); } .stat.open { color: var(--brass); } .stat.tx { color: var(--tx); }
+.antrow { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; margin-top: 10px; }
+.ant { font: 700 0.7rem/1 var(--mono); text-align: center; padding: 7px 0; border: 1px solid var(--rule); color: var(--dim); }
+.ant.on { border-color: var(--copper); background: var(--copper); color: var(--ink); }
+.fine { font: 0.8rem/1.45 var(--mono); color: var(--dim); margin: 12px 0 0; }
+
+/* Log */
+ol.log { list-style: none; margin: 26px 0 0; padding: 0; max-width: 820px; }
+ol.log li { display: grid; grid-template-columns: 8.6em minmax(0, 1fr); gap: 16px; padding-block: 11px; border-top: 1px solid var(--rule); }
+ol.log time { font: 0.88rem/1.7 var(--mono); color: var(--brass); }
+ol.log b { font-weight: 500; }
+
+/* Scored */
+.rules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin-top: 24px; }
+.rules > div { min-width: 0; }
+.rules h3 { font: 400 1.3rem/1.2 var(--display); margin: 0 0 4px; color: var(--copper); }
+.rules p { margin: 0; font-size: 1rem; }
+.score { margin-top: 34px; border-bottom: 1px solid var(--rule); }
+.score .row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) 7em; gap: 18px; padding-block: 13px; border-top: 1px solid var(--rule); align-items: start; }
+.score .row > * { min-width: 0; }
+.score .head { font: 700 0.74rem/1.3 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+.score .said { color: var(--dim); }
+.score .stat { justify-self: start; }
+.stat.wrong { color: var(--tx); } .stat.saved { color: var(--live); }
+
+/* Chart table */
+.chart { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: clamp(24px, 4vw, 48px); align-items: start; }
+.chart > * { min-width: 0; }
+.chart img { width: 100%; border: 1px solid var(--rule); }
+ul.tracks { list-style: none; margin: 18px 0 0; padding: 0; font: 0.95rem/1.4 var(--mono); }
+ul.tracks li { padding-block: 6px; border-top: 1px solid var(--rule); }
+ul.tracks em { font-family: var(--display); font-style: normal; font-size: 1.15rem; color: var(--copper); }
+
+/* The copper sheet */
+.sheet { background: linear-gradient(112deg, var(--sheet) 0%, var(--sheet-hi) 38%, var(--sheet) 62%, #b97a50 100%); color: var(--sheet-ink); padding: clamp(10px, 1.6vw, 16px); }
+.sheet-in { border: 2px solid var(--sheet-ink); outline: 1px solid var(--sheet-ink); outline-offset: -7px; padding: clamp(24px, 4.5vw, 52px); }
+.sheet h2 { font-family: var(--caps); text-align: center; font-size: clamp(2.1rem, 6vw, 3.6rem); margin: 0; }
+.sheet .q { text-align: center; font: italic 400 1.15rem/1.4 var(--body); margin: 8px auto 26px; max-width: 46ch; }
+.sheet .cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.sheet .cols > div { min-width: 0; }
+.sheet h3 { font: 700 0.78rem/1.3 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--sheet-ink); }
+.sheet p, .sheet ul { margin: 0; font-size: 1rem; }
+.sheet ul { padding-left: 1.1em; }
+.sheet li + li { margin-top: 6px; }
+.sheet code { color: var(--sheet-ink); font-weight: 700; }
+.sheet .seal { text-align: center; font: 700 0.76rem/1.3 var(--mono); letter-spacing: 0.2em; margin: 28px 0 0; }
+
+/* Open items */
+.open { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 40px; margin-top: 22px; }
+.open > div { min-width: 0; padding-block: 12px; border-top: 1px solid var(--rule); }
+.open h3 { font: 400 1.2rem/1.25 var(--display); margin: 0 0 3px; }
+.open p { margin: 0; font-size: 0.98rem; color: var(--dim); }
+
+/* Plans and foot */
+.plans img { width: 100%; max-width: 1088px; margin-inline: auto; mix-blend-mode: screen; }
+footer { border-top: 1px solid var(--rule); padding-block: 30px 44px; font: 0.82rem/1.5 var(--mono); color: var(--dim); }
+footer .foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px 32px; }
+footer .motto { font: italic 400 1.1rem/1.3 var(--display); color: var(--copper); }
+
+@media (max-width: 820px) {
+  .hero, .part, .chart, .read, .rules, .open { grid-template-columns: minmax(0, 1fr); }
+  .sheet .cols { grid-template-columns: minmax(0, 1fr); }
+  .hero .plate { order: 2; }
+  .chart .fig { order: 2; }
+  .score .head { display: none; }
+  .score .row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .score .stat { margin-top: 4px; }
+}
+@media (max-width: 480px) {
+  ol.log li { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  dl.ledger div { flex-wrap: wrap; gap: 0 8px; }
+  dl.ledger dd { flex: 1 1 100%; text-align: left; }
+  dl.ledger i { display: none; }
+  .axis .opt { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <p class="label">ClockworkPi uConsole · build repository</p>
+      <h1>Fancy</h1>
+      <p class="tag">A pocket radio lab that sails with papers.</p>
+      <p class="intro">Fancy is a uConsole rebuilt as a handheld receive station: software-defined radio, LoRa mesh, GNSS and a Wi-Fi monitor card on eight antennas, driven by a dashboard that teaches as it runs. This repository is the real deliverable. Every spec has a source, every unconfirmed claim says so, and the device can be rebuilt from the paperwork.</p>
+      <div class="links">
+        <a class="btn" href="https://github.com/w1cked5mile/clockworkpi-uconsole-public">Read the repository</a>
+        <a class="btn quiet" href="https://github.com/w1cked5mile/clockworkpi-uconsole-public/blob/main/docs/logs/build-log.md">Build log</a>
+        <a class="btn quiet" href="https://github.com/w1cked5mile/clockworkpi-uconsole-public/blob/main/docs/bill-of-materials.md">Bill of materials</a>
+      </div>
+    </div>
+    <figure class="plate">
+      <div class="ports" aria-hidden="true">
+        <span style="left:4%">SDR</span><span style="left:23%">1</span><span style="left:33%">2</span><span style="left:43%">3</span><span style="left:53%">4</span><span style="left:63%">5</span><span style="left:76%">6</span><span style="left:90%">7</span>
+      </div>
+      <img src="img/front.jpg" width="760" height="1115" alt="The uConsole standing on a desk with its dashboard on the built-in display, a row of six stub antennas and a GNSS puck along the top edge, and a whip on the left side.">
+      <figcaption>Plate I. Fancy on 2026-10-15. Ports ANT1 to ANT7 along the top, SDR on the side.</figcaption>
+    </figure>
+  </header>
+</div>
+
+<section class="band"><div class="wrap">
+  <p class="label">Ship's particulars</p>
+  <h2>Registered, commissioned, measured</h2>
+  <div class="part">
+    <dl class="ledger">
+      <div><dt>Class</dt><i></i><dd>uConsole, mainboard v3.14</dd></div>
+      <div><dt>Commissioned</dt><i></i><dd>2026</dd></div>
+      <div><dt>Operator</dt><i></i><dd>W1cked5mile</dd></div>
+      <div><dt>Compute</dt><i></i><dd>Raspberry Pi CM4 Lite, 8 GB</dd></div>
+      <div><dt>Hold</dt><i></i><dd>256 GB NVMe (WD PC SN730)</dd></div>
+      <div><dt>System</dt><i></i><dd>Debian arm64</dd></div>
+      <div><dt>Sail</dt><i></i><dd>1S LiPo, two packs, ≈74 Wh nominal</dd></div>
+      <div><dt>Range, measured</dt><i></i><dd>52.2 Wh in 13.7 h, first discharge</dd></div>
+      <div><dt>Antennas</dt><i></i><dd>8</dd></div>
+      <div><dt>Receivers</dt><i></i><dd>RTL-SDR, GNSS, MT7921 AC1200</dd></div>
+      <div><dt>Transmitters</dt><i></i><dd>SX1262 LoRa, ordinary Wi-Fi and BT</dd></div>
+      <div><dt>Armament</dt><i></i><dd>2 audit tools, kept under lock</dd></div>
+      <div><dt>Crew</dt><i></i><dd>1 operator, 12 read-only agents</dd></div>
+      <div><dt>Landfall</dt><i></i><dd>DEF CON Group 704, 2026-10-19</dd></div>
+    </dl>
+    <div class="figs">
+      <figure>
+        <img src="img/plate.jpg" width="900" height="580" alt="Engraved copper lid plate showing a gear train, a chain border, the name FANCY and a banner reading TEMPUS NEMINEM EXPECTAT.">
+        <figcaption>Plate II. The copper lid plate. Motto: time waits for no one.</figcaption>
+      </figure>
+    </div>
+  </div>
+</div></section>
+
+<section class="band"><div class="wrap">
+  <p class="label">What it hears</p>
+  <h2>70 MHz to 7.5 GHz, one radio at a time</h2>
+  <p class="lede">Pick a band to see which radio covers it, which antenna serves it, and how far the claim has been proven on this hardware.</p>
+  <div class="scope">
+    <div class="axis" id="axis" aria-hidden="true"></div>
+    <div class="screen">
+      <canvas id="fall" width="1100" height="300" role="img" aria-label="Animated illustration of a radio waterfall on a logarithmic frequency scale, with bright traces at the bands Fancy covers."></canvas>
+      <div class="brk" id="brk"></div>
+    </div>
+    <div class="reach" id="reach"><b>RTL-SDR tunes to 1.74 GHz</b></div>
+    <div class="chips" id="chips"></div>
+    <div class="read">
+      <div>
+        <h3 id="rName"></h3>
+        <p class="freq" id="rFreq"></p>
+        <span class="stat" id="rStat"></span>
+      </div>
+      <div>
+        <p id="rNote"></p>
+        <div class="antrow" id="ants" aria-label="Antenna ports in use"></div>
+      </div>
+    </div>
+  </div>
+  <p class="fine">Illustration, not a capture. Band edges and the log scale are true; this page draws the traces itself. The 1.74 GHz tuner limit is the vendor's figure.</p>
+</div></section>
+
+<section class="band"><div class="wrap">
+  <p class="label">The log</p>
+  <h2>Forty-seven days from first order to first talk</h2>
+  <p class="lede">The paperwork started while the parts were still at sea. All dates are 2026, drawn from the build log.</p>
+  <ol class="log">
+    <li><time datetime="2026-09-02">09-02</time><div><b>First order placed.</b> Three orders in two days cover the uConsole kit, the AIO V2 radio board and the CM4.</div></li>
+    <li><time datetime="2026-09-04">09-04</time><div><b>First commit.</b> Spec sheets, staged configs and a bring-up checklist get written before there is hardware to check them on.</div></li>
+    <li><time datetime="2026-09-15">09-15</time><div><b>Assembled and closed.</b> Mainboard, CM4, AIO V2 and all eight antennas.</div></li>
+    <li><time datetime="2026-09-16">09-16</time><div><b>First boot.</b> The predictions start getting scored.</div></li>
+    <li><time datetime="2026-09-23">09-23</time><div><b>Root moves to NVMe, Ethernet links at 1 Gbps, first 3D GNSS fix.</b> The microSD comes out and stays out as a fallback.</div></li>
+    <li><time datetime="2026-09-30">09-30</time><div><b>AC1200 fitted.</b> Four antennas that had nothing behind them finally have a radio.</div></li>
+    <li><time datetime="2026-10-11">10-11</time><div><b>LiPo conversion.</b> The 18650 holder comes off, <code>JP1</code> gets bridged, and the Meshnology pair goes in.</div></li>
+    <li><time datetime="2026-10-13">10-13</time><div><b>First full discharge.</b> 52.2 Wh in 13.7 h, then power cuts at ≥3.53 V with the curve still flat.</div></li>
+    <li><time datetime="2026-10-19">10-19</time><div><b>Landfall at DC704.</b> About 90 minutes solo, live demos on the device, the operator's first DEF CON talk.</div></li>
+    <li><time datetime="2026-10-25">10-25</time><div><b>Every lesson re-checked.</b> 174 review items cleared, including a quiz with a wrong NMEA checksum.</div></li>
+    <li><time datetime="2026-10-28">10-28</time><div><b>Agent team rebuilt.</b> Twelve read-only agents, including a gate that checks authorization before anything active ships.</div></li>
+    <li><time datetime="2026-10-31">10-31</time><div><b>A Quectel BG95 reaches the bench.</b> It powers up but won't talk yet.</div></li>
+  </ol>
+</div></section>
+
+<section class="band"><div class="wrap">
+  <p class="label">Scored against the hardware</p>
+  <h2>The device checks the documents</h2>
+  <p class="lede">An AI coding agent did much of the research and drafting, and agents write confident, well-formatted, wrong specifications. So the repository is built to make wrong claims cheap to find.</p>
+  <div class="rules">
+    <div><h3>Verify markers</h3><p>Anything not confirmed on this hardware says so in the sentence that makes the claim.</p></div>
+    <div><h3>Estimates expire</h3><p>Every estimate names the command whose output will replace it.</p></div>
+    <div><h3>Dated evidence</h3><p>Commands, expected output and recorded results sit in logs a reader can check.</p></div>
+  </div>
+  <div class="score">
+    <div class="row head"><span>What the paperwork said</span><span>What actually happened</span><span>Result</span></div>
+    <div class="row"><span class="said">The bill of materials recorded 18650 cells as included.</span><span>The invoice read "batteries holder". Caught before the parts arrived.</span><span class="stat saved">Caught</span></div>
+    <div class="row"><span class="said">The SDR rail powers on at boot and costs about an hour of battery.</span><span>On CM4, every rail is off after a cold boot. Test 0 proved it.</span><span class="stat wrong">Wrong</span></div>
+    <div class="row"><span class="said">Staged <code>gpsd</code> config named the GNSS port every document named.</span><span>That port does not exist on this board. Its checklist row caught it.</span><span class="stat wrong">Wrong</span></div>
+    <div class="row"><span class="said">Dead Ethernet pointed at a failed mainboard.</span><span>The kit's CM4 adapter had no port for the AIO V2's ribbon. The board was fine.</span><span class="stat saved">Caught</span></div>
+    <div class="row"><span class="said">Idle power estimate from component typicals.</span><span>Measured about 1.5 W higher, cutting expected battery life by a third.</span><span class="stat wrong">Wrong</span></div>
+    <div class="row"><span class="said">A mesh control labelled Switch only changes a setting.</span><span>The journal showed it transmits about 30 s later. Now labelled Retune radio, with a TX tag.</span><span class="stat saved">Caught</span></div>
+  </div>
+</div></section>
+
+<section class="band"><div class="wrap chart">
+  <div>
+    <p class="label">The Chart Table</p>
+    <h2>The labs are graded by the device</h2>
+    <p class="lede">The dashboard runs on Fancy and doubles as a course. Lessons read live values from the radios, and a lab passes only when the device's own status says so, then checks that everything was put back.</p>
+    <ul class="tracks">
+      <li><em>Just got Fancy</em></li>
+      <li><em>RF curious</em></li>
+      <li><em>Ham-bound</em></li>
+      <li><em>Letters of marque</em></li>
+    </ul>
+    <p class="small">4 tracks, 17 modules, 62 lessons, 24 labs, 54 glossary terms.</p>
+  </div>
+  <figure class="fig">
+    <img src="img/dash.jpg" width="1280" height="480" alt="The webdash overview: tiles for system, power, Meshtastic, GPS, ADS-B and Wi-Fi survey, each with a status and a toggle.">
+    <figcaption>Plate III. The operator dashboard, rendered with fixture data. Each tile keeps a plain name beside a nautical one: hull &amp; engine, switchboard, hailing, sextant, lookout.</figcaption>
+    <p class="small">Writing labs precise enough to grade found what the checklist missed: a GPS lab that could never pass, a mesh radio that beacons on its own, and a Kismet default that logged data frames.</p>
+  </figure>
+</div></section>
+
+<section class="band"><div class="wrap">
+  <div class="sheet"><div class="sheet-in">
+    <h2>Letter of Marque</h2>
+    <p class="q">The original Fancy was Henry Every's pirate ship, 1695. This one carries a letter.</p>
+    <div class="cols">
+      <div>
+        <h3>Authorized</h3>
+        <ul>
+          <li>Receive what is already on the air.</li>
+          <li>Measure it and record it.</li>
+          <li>Transmit licence-free mesh and ordinary Wi-Fi and Bluetooth.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Under lock</h3>
+        <p><code>aircrack-ng</code> and <code>netexec</code> are installed for own gear, a documented engagement, or a CTF whose rules permit it. Nothing else.</p>
+      </div>
+      <div>
+        <h3>Forbidden</h3>
+        <ul>
+          <li>Deauth, handshake capture, association or cracking without ownership or written authorization.</li>
+          <li>Decoding protected or encrypted traffic.</li>
+          <li>Unlicensed transmission.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="seal">A PRIVATEER WITHOUT PAPERS IS JUST A PIRATE</p>
+  </div></div>
+</div></section>
+
+<section class="band"><div class="wrap">
+  <p class="label">Open on the bench</p>
+  <h2>What isn't solved yet</h2>
+  <p class="lede">The repository keeps its unfinished business in plain view, so this page does too.</p>
+  <div class="open">
+    <div><h3>Power cuts out near 3.5 V</h3><p>No warning, under load, with charge left in the pack. Cause unverified, likely on the system side.</p></div>
+    <div><h3>The gauges can't be trusted yet</h3><p>Fuel gauge percent is wrong on this pack, and charge current over-reads by at least 1.4×.</p></div>
+    <div><h3>Bare holder pads</h3><p>Four contact remnants on the NVMe board need trimming and Kapton near the pouches.</p></div>
+    <div><h3>5 and 6 GHz unproven</h3><p>The card lists monitor mode on both. No survey is on record for either.</p></div>
+    <div><h3>Spotter is paused</h3><p>The passive detector for offensive devices is built but unfinished, waiting on a platform blocker.</p></div>
+    <div><h3>The BG95 is silent</h3><p>The LTE module is powered on the bench. AT commands have not run, and nothing has decoded cleanly.</p></div>
+  </div>
+</div></section>
+
+<section class="band plans"><div class="wrap">
+  <figure>
+    <img src="img/plans.jpg" width="1088" height="608" alt="White line drawing on black of a three-masted frigate named Fancy: side elevation, bow and stern views, deck plans, body plan and sheer plan.">
+    <figcaption>Plate IV. The namesake, drawn as a frigate. Artwork from the repository; its particulars are decorative.</figcaption>
+  </figure>
+</div></section>
+
+<footer><div class="wrap">
+  <div class="foot">
+    <span class="motto">Tempus neminem expectat.</span>
+    <span>Facts as of 2026-11-06 · 628 commits since 2026-09-04</span>
+    <span>Docs CC BY 4.0 · code MIT · <a href="https://github.com/w1cked5mile/clockworkpi-uconsole-public">source</a></span>
+  </div>
+</div></footer>
+
+<script>
+(function () {
+  var FMIN = 70, FMAX = 7500;
+  var X = function (mhz) { return Math.log(mhz / FMIN) / Math.log(FMAX / FMIN); };
+  var PORTS = ["SDR", "ANT1", "ANT2", "ANT3", "ANT4", "ANT5", "ANT6", "ANT7"];
+  var BANDS = [
+    { id: "fm", chip: "FM", name: "FM broadcast", lo: 88, hi: 108, freq: "88–108 MHz · RTL-SDR · receive", st: ["ok", "Demoed live"], ports: ["SDR"],
+      note: "The Hunt tab sweeps the band and lists the strongest stations. This was the waterfall demo at DC704." },
+    { id: "air", chip: "Airband", name: "Airband", lo: 118, hi: 137, freq: "118–137 MHz · RTL-SDR · receive", st: ["ok", "In the Hunt tab"], ports: ["SDR"],
+      note: "The dashboard sweeps this band beside FM broadcast, and Listen plays whatever a sweep finds." },
+    { id: "vhf", chip: "APRS / AIS", name: "APRS and AIS", lo: 144, hi: 162.1, freq: "144–162 MHz · RTL-SDR · receive", st: ["open", "Nothing decoded yet"], ports: ["SDR"],
+      note: "direwolf, rtl_ais and multimon-ng are installed and piped. A first real decode is still ahead." },
+    { id: "lora", chip: "LoRa", name: "Meshtastic LoRa", lo: 902, hi: 928, freq: "902–928 MHz · SX1262 · receive and transmit", st: ["tx", "Verified · transmits"], ports: ["ANT1"],
+      note: "The mesh node WICKED5, on a private channel with a Heltec peer. Part 15, licence-free." },
+    { id: "adsb", chip: "ADS-B", name: "ADS-B", lo: 1085, hi: 1095, freq: "1090 MHz · RTL-SDR · receive", st: ["ok", "Verified 09-28"], ports: ["SDR"],
+      note: "readsb and tar1090 turn aircraft transponder bursts into a live map on the dashboard." },
+    { id: "gnss", chip: "GNSS", name: "GPS and GLONASS", lo: 1570, hi: 1606, freq: "1575 and ≈1602 MHz · AIO V2 GNSS · receive", st: ["ok", "Verified · 3D fix"], ports: ["ANT7"],
+      note: "15 satellites at HDOP 0.7 on 2026-10-04. The signals arrive below the noise floor, so they look like nothing here. Time to first fix is not yet measured." },
+    { id: "w24", chip: "2.4 GHz", name: "Wi-Fi and Bluetooth, 2.4 GHz", lo: 2400, hi: 2484, freq: "2.4 GHz · AC1200 and onboard · passive monitoring", st: ["ok", "Verified · soaked 10-25"], ports: ["ANT2", "ANT3", "ANT4", "ANT5", "ANT6"],
+      note: "The MT7921 card watches in monitor mode and scans BLE passively for Kismet, while the CM4's own radio keeps the uplink." },
+    { id: "w5", chip: "5 GHz", name: "Wi-Fi, 5 GHz", lo: 5150, hi: 5895, freq: "5.15–5.9 GHz · AC1200 · passive monitoring", st: ["open", "Listed · no survey yet"], ports: ["ANT5", "ANT6"],
+      note: "Monitor mode is listed and the band sits in Kismet's hop set. No survey has been recorded." },
+    { id: "w6", chip: "6 GHz", name: "Wi-Fi, 6 GHz", lo: 5925, hi: 7125, freq: "5.9–7.1 GHz · AC1200 · passive monitoring", st: ["open", "Unverified in practice"], ports: ["ANT5", "ANT6"],
+      note: "The card lists 6 GHz monitor mode. A first survey of own 6E gear is on the list." }
+  ];
+
+  var FM = [89.3, 90.7, 92.1, 93.3, 94.9, 96.1, 97.1, 98.5, 99.7, 101.9, 103.3, 104.7, 106.5, 107.5];
+  var cv = document.getElementById("fall"), ctx = cv.getContext("2d");
+  var W = cv.width, H = cv.height;
+  var img = ctx.createImageData(W, 1);
+  var v = new Float32Array(W);
+  var sel = "adsb", tick = 0;
+
+  // Colour ramp: water, phosphor, brass, parchment.
+  var STOPS = [[0, 5, 9, 12], [0.22, 12, 46, 58], [0.5, 40, 150, 95], [0.74, 201, 164, 92], [1, 240, 228, 205]];
+  var LUT = new Uint8ClampedArray(256 * 3);
+  for (var i = 0; i < 256; i++) {
+    var t = i / 255, a = STOPS[0], b = STOPS[STOPS.length - 1];
+    for (var s = 0; s < STOPS.length - 1; s++) if (t >= STOPS[s][0] && t <= STOPS[s + 1][0]) { a = STOPS[s]; b = STOPS[s + 1]; break; }
+    var k = (t - a[0]) / (b[0] - a[0] || 1);
+    for (var c = 0; c < 3; c++) LUT[i * 3 + c] = a[c + 1] + (b[c + 1] - a[c + 1]) * k;
+  }
+
+  var px = function (mhz) { return Math.round(X(mhz) * (W - 1)); };
+  function add(x0, x1, level) { for (var x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) v[x] = Math.max(v[x], level * (0.85 + Math.random() * 0.15)); }
+  function line(mhz, level, half) { var p = px(mhz); add(p - (half || 0), p + (half || 0), level); }
+
+  // Burst state persists across rows so transmissions have a duration on screen.
+  var airOn = [], vhfOn = 0, vhfF = 144.39, wifiLife = {};
+  function burst(key, chance, min, max) {
+    if (wifiLife[key] > 0) { wifiLife[key]--; return true; }
+    if (Math.random() < chance) { wifiLife[key] = min + Math.floor(Math.random() * (max - min)); return true; }
+    return false;
+  }
+
+  function row() {
+    tick++;
+    for (var x = 0; x < W; x++) v[x] = 0.09 + Math.random() * 0.1 + 0.02 * Math.sin(x / 60 + tick / 90);
+    FM.forEach(function (f, i) { line(f, 0.62 + 0.14 * ((i * 7) % 4) / 3); });
+    if (Math.random() < 0.05) airOn.push({ f: 118 + Math.random() * 19, n: 8 + Math.floor(Math.random() * 26) });
+    airOn = airOn.filter(function (a) { line(a.f, 0.72); return --a.n > 0; });
+    if (vhfOn > 0) { vhfOn--; line(vhfF, 0.76); } else if (Math.random() < 0.012) { vhfOn = 7; vhfF = [144.39, 161.975, 162.025][Math.floor(Math.random() * 3)]; }
+    var loraT = tick % 150;
+    if (loraT < 26) line(902 + 26 * ((loraT % 13) / 13), 0.9, 1);
+    if (Math.random() < 0.4) line(1090, 0.95, 1);
+    add(px(1575.42) - 2, px(1575.42) + 2, 0.22 + Math.random() * 0.03);
+    add(px(1602) - 3, px(1602) + 3, 0.21 + Math.random() * 0.03);
+    [2412, 2437, 2462].forEach(function (f, i) { if (burst("b" + i, 0.3, 1, 7)) add(px(f - 10), px(f + 10), 0.6 + i * 0.06); });
+    if (Math.random() < 0.8) line(2402 + Math.random() * 78, 0.8);
+    [5180, 5240, 5320, 5500, 5660, 5745, 5805].forEach(function (f, i) { if (burst("f" + i, 0.1, 1, 6)) add(px(f - 10), px(f + 30), 0.5 + (i % 3) * 0.08); });
+    [6055, 6375, 6775].forEach(function (f, i) { if (burst("s" + i, 0.04, 1, 5)) add(px(f - 20), px(f + 60), 0.46); });
+
+    var b = BANDS.filter(function (x) { return x.id === sel; })[0], lo = px(b.lo) - 2, hi = px(b.hi) + 2;
+    for (var y = 0; y < W; y++) {
+      var val = (y >= lo && y <= hi) ? v[y] : v[y] * 0.62;
+      var n = Math.min(255, Math.max(0, Math.floor(val * 255))) * 3;
+      var o = y * 4;
+      img.data[o] = LUT[n]; img.data[o + 1] = LUT[n + 1]; img.data[o + 2] = LUT[n + 2]; img.data[o + 3] = 255;
+    }
+  }
+  function step() { ctx.drawImage(cv, 0, 1); row(); ctx.putImageData(img, 0, 0); }
+  function fill() { for (var r = 0; r < H; r++) step(); }
+
+  // Static furniture: axis ticks, SDR reach bar.
+  var axis = document.getElementById("axis");
+  [[100, "100 MHz"], [200, "200", 1], [500, "500", 1], [1000, "1 GHz"], [2000, "2", 1], [5000, "5 GHz"]].forEach(function (t) {
+    var s = document.createElement("span");
+    s.textContent = t[1]; s.style.left = (X(t[0]) * 100) + "%";
+    if (t[2]) s.className = "opt";
+    axis.appendChild(s);
+  });
+  document.querySelector("#reach b").style.width = (X(1740) * 100) + "%";
+
+  var ants = document.getElementById("ants");
+  PORTS.forEach(function (p) { var d = document.createElement("div"); d.className = "ant"; d.textContent = p.replace("ANT", "A"); d.dataset.p = p; d.title = p; ants.appendChild(d); });
+
+  var chips = document.getElementById("chips");
+  BANDS.forEach(function (b) {
+    var el = document.createElement("button");
+    el.type = "button"; el.className = "chip"; el.id = "chip-" + b.id; el.textContent = b.chip;
+    el.addEventListener("click", function () { pick(b.id); });
+    chips.appendChild(el);
+  });
+
+  function pick(id) {
+    sel = id;
+    var b = BANDS.filter(function (x) { return x.id === id; })[0];
+    BANDS.forEach(function (x) { document.getElementById("chip-" + x.id).setAttribute("aria-pressed", x.id === id ? "true" : "false"); });
+    document.getElementById("rName").textContent = b.name;
+    document.getElementById("rFreq").textContent = b.freq;
+    var st = document.getElementById("rStat"); st.textContent = b.st[1]; st.className = "stat " + b.st[0];
+    document.getElementById("rNote").textContent = b.note;
+    Array.prototype.forEach.call(ants.children, function (d) { d.classList.toggle("on", b.ports.indexOf(d.dataset.p) >= 0); });
+    var brk = document.getElementById("brk");
+    brk.style.left = (X(b.lo) * 100) + "%";
+    brk.style.width = ((X(b.hi) - X(b.lo)) * 100) + "%";
+  }
+
+  cv.addEventListener("click", function (e) {
+    var r = cv.getBoundingClientRect(), f = (e.clientX - r.left) / r.width, best = BANDS[0], d = 9;
+    BANDS.forEach(function (b) { var q = Math.abs((X(b.lo) + X(b.hi)) / 2 - f); if (q < d) { d = q; best = b; } });
+    pick(best.id);
+    if (quiet) fill();
+  });
+
+  var quiet = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  pick(sel);
+  chips.addEventListener("click", function () { if (quiet) fill(); });
+  fill();
+  if (!quiet) {
+    var last = 0;
+    (function loop(now) {
+      requestAnimationFrame(loop);
+      if (document.hidden || now - last < 55) return;
+      last = now; step();
+    })(0);
+  }
+})();
+</script>
+</body>
+</html>

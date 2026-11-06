@@ -8,6 +8,8 @@
 
 Documentation, software, drivers, firmware, and configuration for a ClockworkPi uConsole build.
 
+New here? Start with the [about page](about/index.html).
+
 ## Hardware summary
 
 | Component | Notes |
